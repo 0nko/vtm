@@ -62,32 +62,36 @@ public class Animator {
 	}
 
 	public synchronized void animateTo(long duration, BoundingBox bbox) {
-		mMap.getMapPosition(mStartPos);
+		animateTo(duration, bbox, 0);
+	}
+
+    public synchronized void animateTo(long duration, BoundingBox bbox, int margin) {
+        mMap.getMapPosition(mStartPos);
 		/* TODO for large distance first scale out, then in
 		 * calculate the maximum scale at which the BoundingBox
 		 * is completely visible */
-		double dx = Math.abs(longitudeToX(bbox.getMaxLongitude())
-		        - longitudeToX(bbox.getMinLongitude()));
+        double dx = Math.abs(longitudeToX(bbox.getMaxLongitude())
+                - longitudeToX(bbox.getMinLongitude())) + margin;
 
-		double dy = Math.abs(latitudeToY(bbox.getMinLatitude())
-		        - latitudeToY(bbox.getMaxLatitude()));
+        double dy = Math.abs(latitudeToY(bbox.getMinLatitude())
+                - latitudeToY(bbox.getMaxLatitude())) + margin;
 
-		log.debug("anim bbox " + bbox);
+        log.debug("anim bbox " + bbox);
 
-		double zx = mMap.getWidth() / (dx * Tile.SIZE);
-		double zy = mMap.getHeight() / (dy * Tile.SIZE);
-		double newScale = Math.min(zx, zy);
+        double zx = mMap.getWidth() / (dx * Tile.SIZE);
+        double zy = mMap.getHeight() / (dy * Tile.SIZE);
+        double newScale = Math.min(zx, zy);
 
-		GeoPoint p = bbox.getCenterPoint();
+        GeoPoint p = bbox.getCenterPoint();
 
-		mDeltaPos.set(longitudeToX(p.getLongitude()) - mStartPos.x,
-		              latitudeToY(p.getLatitude()) - mStartPos.y,
-		              newScale - mStartPos.scale,
-		              -mStartPos.bearing,
-		              -mStartPos.tilt);
+        mDeltaPos.set(longitudeToX(p.getLongitude()) - mStartPos.x,
+                latitudeToY(p.getLatitude()) - mStartPos.y,
+                newScale - mStartPos.scale,
+                -mStartPos.bearing,
+                -mStartPos.tilt);
 
-		animStart(duration, ANIM_MOVE | ANIM_SCALE | ANIM_ROTATE | ANIM_TILT);
-	}
+        animStart(duration, ANIM_MOVE | ANIM_SCALE | ANIM_ROTATE | ANIM_TILT);
+    }
 
 	public synchronized void animateTo(BoundingBox bbox) {
 		animateTo(1000, bbox);
