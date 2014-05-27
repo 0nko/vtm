@@ -71,15 +71,15 @@ public class Animator {
 		 * calculate the maximum scale at which the BoundingBox
 		 * is completely visible */
         double dx = Math.abs(longitudeToX(bbox.getMaxLongitude())
-                - longitudeToX(bbox.getMinLongitude())) + margin;
+                - longitudeToX(bbox.getMinLongitude()));
 
         double dy = Math.abs(latitudeToY(bbox.getMinLatitude())
-                - latitudeToY(bbox.getMaxLatitude())) + margin;
+                - latitudeToY(bbox.getMaxLatitude()));
 
         log.debug("anim bbox " + bbox);
 
-        double zx = mMap.getWidth() / (dx * Tile.SIZE);
-        double zy = mMap.getHeight() / (dy * Tile.SIZE);
+        double zx = (mMap.getWidth() - margin) / (dx * Tile.SIZE);
+        double zy = (mMap.getHeight() - margin) / (dy * Tile.SIZE);
         double newScale = Math.min(zx, zy);
 
         GeoPoint p = bbox.getCenterPoint();
