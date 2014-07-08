@@ -79,7 +79,6 @@ public class XmlThemeBuilder extends DefaultHandler {
 	private static final String LINE_STYLE = "L";
 	private static final String OUTLINE_STYLE = "O";
 	private static final String AREA_STYLE = "A";
-	private static final String TEXT_STYLE = "T";
 
 	/**
 	 * @param inputStream
@@ -129,6 +128,9 @@ public class XmlThemeBuilder extends DefaultHandler {
 	private final HashMap<String, RenderStyle> mStyles =
 	        new HashMap<String, RenderStyle>(10);
 
+	private final HashMap<String, TextStyle.TextBuilder> mTextStyles =
+	        new HashMap<String, TextStyle.TextBuilder>(10);
+
 	private final TextBuilder mTextBuilder = new TextBuilder();
 	private final AreaBuilder mAreaBuilder = new AreaBuilder();
 	private final LineBuilder mLineBuilder = new LineBuilder();
@@ -138,7 +140,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 
 	private int mLevels = 0;
 	private int mMapBackground = 0xffffffff;
-	private float mBaseTextSize = 1;
+	private float mTextScale = 1;
 
 	private RenderTheme mRenderTheme;
 
@@ -149,7 +151,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 		for (int i = 0, n = rules.length; i < n; i++)
 			rules[i] = mRulesList.get(i).onComplete(null);
 
-		mRenderTheme = new RenderTheme(mMapBackground, mBaseTextSize, rules, mLevels);
+		mRenderTheme = new RenderTheme(mMapBackground, mTextScale, rules, mLevels);
 
 		mRulesList.clear();
 		mStyles.clear();
@@ -202,8 +204,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 
 			} else if ("style-text".equals(localName)) {
 				checkState(localName, Element.STYLE);
-				TextStyle text = createText(localName, attributes, false);
-				mStyles.put(TEXT_STYLE + text.style, text);
+				handleTextElement(localName, attributes, true, false);
 
 			} else if ("style-area".equals(localName)) {
 				checkState(localName, Element.STYLE);
@@ -224,8 +225,8 @@ public class XmlThemeBuilder extends DefaultHandler {
 
 			} else if ("caption".equals(localName)) {
 				checkState(localName, Element.RENDERING_INSTRUCTION);
-				TextStyle text = createText(localName, attributes, true);
-				mCurrentRule.addStyle(text);
+				handleTextElement(localName, attributes, false, true);
+
 			} else if ("circle".equals(localName)) {
 				checkState(localName, Element.RENDERING_INSTRUCTION);
 				CircleStyle circle = createCircle(localName, attributes, mLevels++);
@@ -237,17 +238,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 
 			} else if ("text".equals(localName)) {
 				checkState(localName, Element.RENDERING_INSTRUCTION);
-				String style = attributes.getValue("use");
-				if (style == null) {
-					TextStyle text = createText(localName, attributes, false);
-					mCurrentRule.addStyle(text);
-				} else {
-					TextStyle pt = (TextStyle) mStyles.get(TEXT_STYLE + style);
-					if (pt != null)
-						mCurrentRule.addStyle(pt);
-					else
-						log.debug("BUG not a path text style: " + style);
-				}
+				handleTextElement(localName, attributes, false, false);
 
 			} else if ("symbol".equals(localName)) {
 				checkState(localName, Element.RENDERING_INSTRUCTION);
@@ -296,7 +287,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 		byte zoomMax = Byte.MAX_VALUE;
 		int selector = 0;
 
-		for (int i = 0; i < attributes.getLength(); ++i) {
+		for (int i = 0; i < attributes.getLength(); i++) {
 			String name = attributes.getLocalName(i);
 			String value = attributes.getValue(i);
 
@@ -379,8 +370,8 @@ public class XmlThemeBuilder extends DefaultHandler {
 			mStyles.put(LINE_STYLE + line.style, line);
 		} else {
 			mCurrentRule.addStyle(line);
-			// Note 'outline' will not be inherited, it's just a 
-			// shorcut to add the outline RenderInstruction.
+			/* Note 'outline' will not be inherited, it's just a
+			 * shorcut to add the outline RenderInstruction. */
 			addOutline(attributes.getValue("outline"));
 		}
 	}
@@ -400,7 +391,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 		b.isOutline(isOutline);
 		b.level(level);
 
-		for (int i = 0; i < attributes.getLength(); ++i) {
+		for (int i = 0; i < attributes.getLength(); i++) {
 			String name = attributes.getLocalName(i);
 			String value = attributes.getValue(i);
 
@@ -501,7 +492,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 
 		String src = null;
 
-		for (int i = 0; i < attributes.getLength(); ++i) {
+		for (int i = 0; i < attributes.getLength(); i++) {
 			String name = attributes.getLocalName(i);
 			String value = attributes.getValue(i);
 
@@ -658,7 +649,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 		Integer version = null;
 		int mapBackground = Color.WHITE;
 		float baseStrokeWidth = 1;
-		float baseTextSize = 1;
+		float baseTextScale = 1;
 
 		for (int i = 0; i < attributes.getLength(); ++i) {
 			String name = attributes.getLocalName(i);
@@ -676,8 +667,8 @@ public class XmlThemeBuilder extends DefaultHandler {
 			else if ("base-stroke-width".equals(name))
 				baseStrokeWidth = Float.parseFloat(value);
 
-			else if ("base-text-size".equals(name))
-				baseTextSize = Float.parseFloat(value);
+			else if ("base-text-scale".equals(name))
+				baseTextScale = Float.parseFloat(value);
 
 			else
 				XmlThemeBuilder.logUnknownAttribute(elementName, name, value, i);
@@ -691,10 +682,33 @@ public class XmlThemeBuilder extends DefaultHandler {
 			        + version);
 
 		validateNonNegative("base-stroke-width", baseStrokeWidth);
-		validateNonNegative("base-test-size", baseTextSize);
+		validateNonNegative("base-text-scale", baseTextScale);
 
 		mMapBackground = mapBackground;
-		mBaseTextSize = baseTextSize;
+		mTextScale = baseTextScale;
+	}
+
+	private void handleTextElement(String localName, Attributes attributes, boolean isStyle,
+	        boolean isCaption) throws SAXException {
+
+		String style = attributes.getValue("use");
+		TextStyle.TextBuilder pt = null;
+
+		if (style != null) {
+			pt = mTextStyles.get(style);
+			if (pt == null) {
+				log.debug("missing text style: " + style);
+				return;
+			}
+		}
+
+		TextBuilder b = createText(localName, attributes, isCaption, pt);
+		if (isStyle) {
+			log.debug("put style {}", b.style);
+			mTextStyles.put(b.style, new TextBuilder().setFrom(b));
+		} else {
+			mCurrentRule.addStyle(b.buildInternal());
+		}
 	}
 
 	/**
@@ -702,12 +716,16 @@ public class XmlThemeBuilder extends DefaultHandler {
 	 *            ...
 	 * @return a new Text with the given rendering attributes.
 	 */
-	private TextStyle createText(String elementName, Attributes attributes, boolean caption) {
-		TextBuilder b = mTextBuilder.reset();
+	private TextStyle.TextBuilder createText(String elementName, Attributes attributes,
+	        boolean caption, TextBuilder style) {
+		TextBuilder b;
+		if (style == null) {
+			b = mTextBuilder.reset();
+			b.caption = caption;
+		} else
+			b = mTextBuilder.setFrom(style);
 
-		b.caption = caption;
-
-		for (int i = 0; i < attributes.getLength(); ++i) {
+		for (int i = 0; i < attributes.getLength(); i++) {
 			String name = attributes.getLocalName(i);
 			String value = attributes.getValue(i);
 
@@ -747,7 +765,8 @@ public class XmlThemeBuilder extends DefaultHandler {
 
 			else if ("symbol".equals(name))
 				b.texture = getAtlasRegion(value);
-
+			else if ("use".equals(name))
+				;/* ignore */
 			else
 				logUnknownAttribute(elementName, name, value, i);
 		}
@@ -756,7 +775,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 		validateNonNegative("size", b.fontSize);
 		validateNonNegative("stroke-width", b.strokeWidth);
 
-		return b.buildInternal();
+		return b;
 	}
 
 	/**
@@ -771,7 +790,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 		int stroke = Color.TRANSPARENT;
 		float strokeWidth = 0;
 
-		for (int i = 0; i < attributes.getLength(); ++i) {
+		for (int i = 0; i < attributes.getLength(); i++) {
 			String name = attributes.getLocalName(i);
 			String value = attributes.getValue(i);
 
@@ -807,7 +826,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 	private SymbolStyle createSymbol(String elementName, Attributes attributes) {
 		String src = null;
 
-		for (int i = 0; i < attributes.getLength(); ++i) {
+		for (int i = 0; i < attributes.getLength(); i++) {
 			String name = attributes.getLocalName(i);
 			String value = attributes.getValue(i);
 
