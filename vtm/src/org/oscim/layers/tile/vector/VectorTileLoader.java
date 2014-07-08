@@ -23,10 +23,9 @@ import org.oscim.core.MapElement;
 import org.oscim.core.MercatorProjection;
 import org.oscim.core.Tag;
 import org.oscim.core.TagSet;
+import org.oscim.core.Tile;
 import org.oscim.layers.tile.MapTile;
 import org.oscim.layers.tile.TileLoader;
-import org.oscim.layers.tile.vector.VectorTileLayer.TileLoaderProcessHook;
-import org.oscim.layers.tile.vector.VectorTileLayer.TileLoaderThemeHook;
 import org.oscim.renderer.elements.ElementLayers;
 import org.oscim.renderer.elements.LineLayer;
 import org.oscim.renderer.elements.LineTexLayer;
@@ -129,6 +128,8 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 
 	@Override
 	public void completed(QueryResult result) {
+		mTileLayer.callHooksComplete(mTile, result == QueryResult.SUCCESS);
+
 		super.completed(result);
 		clearState();
 	}
@@ -172,9 +173,8 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 		if (isCanceled() || mTile.state(CANCEL))
 			return;
 
-		for (TileLoaderProcessHook h : mTileLayer.loaderProcessHooks())
-			if (h.process(mTile, mLayers, element))
-				return;
+		if (mTileLayer.callProcessHooks(mTile, mLayers, element))
+			return;
 
 		TagSet tags = filterTags(element.tags);
 		if (tags == null)
@@ -245,6 +245,7 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 			if (ll.line == null) {
 				ll.line = line;
 				ll.scale = line.fixed ? 1 : mLineScale;
+				ll.setExtents(-4, Tile.SIZE + 4);
 			}
 
 			if (line.outline) {
@@ -294,16 +295,12 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 
 	@Override
 	public void renderSymbol(SymbolStyle symbol) {
-		for (TileLoaderThemeHook h : mTileLayer.loaderThemeHooks())
-			if (h.render(mTile, mLayers, mElement, symbol, 0))
-				break;
+		mTileLayer.callThemeHooks(mTile, mLayers, mElement, symbol, 0);
 	}
 
 	@Override
 	public void renderExtrusion(ExtrusionStyle extrusion, int level) {
-		for (TileLoaderThemeHook h : mTileLayer.loaderThemeHooks())
-			if (h.render(mTile, mLayers, mElement, extrusion, level))
-				break;
+		mTileLayer.callThemeHooks(mTile, mLayers, mElement, extrusion, level);
 	}
 
 	@Override
@@ -312,8 +309,6 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 
 	@Override
 	public void renderText(TextStyle text) {
-		for (TileLoaderThemeHook h : mTileLayer.loaderThemeHooks())
-			if (h.render(mTile, mLayers, mElement, text, 0))
-				break;
+		mTileLayer.callThemeHooks(mTile, mLayers, mElement, text, 0);
 	}
 }
