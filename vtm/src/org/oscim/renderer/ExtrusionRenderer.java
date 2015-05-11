@@ -16,10 +16,13 @@
  */
 package org.oscim.renderer;
 
-import org.oscim.backend.GL20;
+import static org.oscim.backend.GLAdapter.gl;
+
+import org.oscim.backend.GL;
 import org.oscim.core.Tile;
-import org.oscim.renderer.elements.ExtrusionLayer;
-import org.oscim.renderer.elements.ExtrusionLayers;
+import org.oscim.renderer.bucket.ExtrusionBucket;
+import org.oscim.renderer.bucket.ExtrusionBuckets;
+import org.oscim.utils.FastMath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,8 +33,8 @@ public abstract class ExtrusionRenderer extends LayerRenderer {
 	private final int mMode;
 	private Shader mShader;
 
-	protected ExtrusionLayers[] mExtrusionLayerSet;
-	protected int mExtrusionLayerCnt;
+	protected ExtrusionBuckets[] mExtrusionBucketSet = {};
+	protected int mBucketsCnt;
 	protected float mAlpha = 1;
 
 	public ExtrusionRenderer(boolean mesh, boolean alpha) {
@@ -56,7 +59,7 @@ public abstract class ExtrusionRenderer extends LayerRenderer {
 	}
 
 	@Override
-	protected boolean setup() {
+	public boolean setup() {
 		if (mMode == 0)
 			mShader = new Shader("extrusion_layer_ext");
 		else
@@ -65,22 +68,25 @@ public abstract class ExtrusionRenderer extends LayerRenderer {
 		return true;
 	}
 
-	private void renderCombined(int vertexPointer, ExtrusionLayers els) {
+	private void renderCombined(int vertexPointer, ExtrusionBuckets ebs) {
 
-		for (ExtrusionLayer el = els.layers; el != null; el = el.next()) {
+		for (ExtrusionBucket eb = ebs.buckets(); eb != null; eb = eb.next()) {
 
-			GL.glVertexAttribPointer(vertexPointer, 3,
-			                         GL20.GL_SHORT, false, 8, 0);
+			gl.vertexAttribPointer(vertexPointer, 3,
+			                       GL.SHORT, false, 8,
+			                       eb.getVertexOffset());
 
-			int sumIndices = el.numIndices[0] + el.numIndices[1] + el.numIndices[2];
+			int sumIndices = eb.idx[0] + eb.idx[1] + eb.idx[2];
+
+			/* extrusion */
 			if (sumIndices > 0)
-				GL.glDrawElements(GL20.GL_TRIANGLES, sumIndices,
-				                  GL20.GL_UNSIGNED_SHORT, 0);
+				gl.drawElements(GL.TRIANGLES, sumIndices,
+				                GL.UNSIGNED_SHORT, eb.off[0]);
 
-			if (el.numIndices[2] > 0) {
-				int offset = sumIndices * 2;
-				GL.glDrawElements(GL20.GL_TRIANGLES, el.numIndices[4],
-				                  GL20.GL_UNSIGNED_SHORT, offset);
+			/* mesh */
+			if (eb.idx[4] > 0) {
+				gl.drawElements(GL.TRIANGLES, eb.idx[4],
+				                GL.UNSIGNED_SHORT, eb.off[4]);
 			}
 		}
 	}
@@ -88,8 +94,11 @@ public abstract class ExtrusionRenderer extends LayerRenderer {
 	@Override
 	public void render(GLViewport v) {
 
-		GL.glDepthMask(true);
-		GL.glClear(GL20.GL_DEPTH_BUFFER_BIT);
+		float[] currentColor = null;
+		float currentAlpha = 0;
+
+		gl.depthMask(true);
+		gl.clear(GL.DEPTH_BUFFER_BIT);
 
 		GLState.test(true, false);
 
@@ -100,153 +109,143 @@ public abstract class ExtrusionRenderer extends LayerRenderer {
 		/* only use face-culling when it's unlikely
 		 * that one'moves through the building' */
 		if (v.pos.zoomLevel < 18)
-			GL.glEnable(GL20.GL_CULL_FACE);
+			gl.enable(GL.CULL_FACE);
 
-		GL.glDepthFunc(GL20.GL_LESS);
-		GL.glUniform1f(s.uAlpha, mAlpha);
+		gl.depthFunc(GL.LESS);
+		gl.uniform1f(s.uAlpha, mAlpha);
 
-		ExtrusionLayers[] els = mExtrusionLayerSet;
+		ExtrusionBuckets[] ebs = mExtrusionBucketSet;
 
 		if (mTranslucent) {
 			/* only draw to depth buffer */
 			GLState.blend(false);
-			GL.glColorMask(false, false, false, false);
-			GL.glUniform1i(s.uMode, -1);
+			gl.colorMask(false, false, false, false);
+			gl.uniform1i(s.uMode, -1);
 
-			for (int i = 0; i < mExtrusionLayerCnt; i++) {
-				if (els[i].vboIndices == null)
+			for (int i = 0; i < mBucketsCnt; i++) {
+				if (ebs[i].ibo == null)
 					return;
 
-				els[i].vboIndices.bind();
-				els[i].vboVertices.bind();
+				ebs[i].ibo.bind();
+				ebs[i].vbo.bind();
 
-				setMatrix(v, els[i], true);
-				v.mvp.setAsUniform(s.uMVP);
+				setMatrix(s, v, ebs[i]);
 
-				renderCombined(s.aPos, els[i]);
+				float alpha = mAlpha * getFade(ebs[i]);
+				if (alpha != currentAlpha) {
+					gl.uniform1f(s.uAlpha, alpha);
+					currentAlpha = alpha;
+				}
+
+				renderCombined(s.aPos, ebs[i]);
 			}
 
 			/* only draw to color buffer */
-			GL.glColorMask(true, true, true, true);
-			GL.glDepthMask(false);
-
-			GL.glDepthFunc(GL20.GL_EQUAL);
+			gl.colorMask(true, true, true, true);
+			gl.depthMask(false);
+			gl.depthFunc(GL.EQUAL);
 		}
 
 		GLState.blend(true);
 
 		GLState.enableVertexArrays(s.aPos, s.aLight);
-		float[] currentColor = null;
 
-		for (int i = 0; i < mExtrusionLayerCnt; i++) {
-			if (els[i].vboIndices == null)
+		for (int i = 0; i < mBucketsCnt; i++) {
+			if (ebs[i].ibo == null)
 				continue;
 
-			els[i].vboIndices.bind();
-			els[i].vboVertices.bind();
+			ebs[i].ibo.bind();
+			ebs[i].vbo.bind();
 
-			if (!mTranslucent) {
-				setMatrix(v, els[i], false);
-				v.mvp.setAsUniform(s.uMVP);
+			if (!mTranslucent)
+				setMatrix(s, v, ebs[i]);
+
+			float alpha = mAlpha * getFade(ebs[i]);
+			if (alpha != currentAlpha) {
+				gl.uniform1f(s.uAlpha, alpha);
+				currentAlpha = alpha;
 			}
 
-			ExtrusionLayer el = els[i].getLayers();
-			for (; el != null; el = el.next()) {
+			ExtrusionBucket eb = ebs[i].buckets();
 
-				if (el.colors != currentColor) {
-					currentColor = el.colors;
+			for (; eb != null; eb = eb.next()) {
+
+				if (eb.colors != currentColor) {
+					currentColor = eb.colors;
 					GLUtils.glUniform4fv(s.uColor,
 					                     mMode == 0 ? 4 : 1,
-					                     el.colors);
+					                     eb.colors);
 				}
 
-				GL.glVertexAttribPointer(s.aPos, 3, GL20.GL_SHORT,
-				                         false, 8, el.getOffset());
+				gl.vertexAttribPointer(s.aPos, 3, GL.SHORT,
+				                       false, 8, eb.getVertexOffset());
 
-				GL.glVertexAttribPointer(s.aLight, 2,
-				                         GL20.GL_UNSIGNED_BYTE,
-				                         false, 8, el.getOffset() + 6);
+				gl.vertexAttribPointer(s.aLight, 2, GL.UNSIGNED_BYTE,
+				                       false, 8, eb.getVertexOffset() + 6);
 
 				/* draw extruded outlines */
-				if (el.numIndices[0] > 0) {
+				if (eb.idx[0] > 0) {
 					if (mTranslucent) {
-						GL.glDepthFunc(GL20.GL_EQUAL);
-						setMatrix(v, els[i], true);
-						v.mvp.setAsUniform(s.uMVP);
+						gl.depthFunc(GL.EQUAL);
+						setMatrix(s, v, ebs[i]);
 					}
 
 					/* draw roof */
-					GL.glUniform1i(s.uMode, 0);
-					GL.glDrawElements(GL20.GL_TRIANGLES,
-					                  el.numIndices[2],
-					                  GL20.GL_UNSIGNED_SHORT,
-					                  (el.numIndices[0]
-					                  + el.numIndices[1]) * 2);
+					gl.uniform1i(s.uMode, 0);
+					gl.drawElements(GL.TRIANGLES, eb.idx[2],
+					                GL.UNSIGNED_SHORT, eb.off[2]);
 
 					/* draw sides 1 */
-					GL.glUniform1i(s.uMode, 1);
-					GL.glDrawElements(GL20.GL_TRIANGLES,
-					                  el.numIndices[0],
-					                  GL20.GL_UNSIGNED_SHORT, 0);
+					gl.uniform1i(s.uMode, 1);
+					gl.drawElements(GL.TRIANGLES, eb.idx[0],
+					                GL.UNSIGNED_SHORT, eb.off[0]);
 
 					/* draw sides 2 */
-					GL.glUniform1i(s.uMode, 2);
-					GL.glDrawElements(GL20.GL_TRIANGLES,
-					                  el.numIndices[1],
-					                  GL20.GL_UNSIGNED_SHORT,
-					                  el.numIndices[0] * 2);
+					gl.uniform1i(s.uMode, 2);
+					gl.drawElements(GL.TRIANGLES, eb.idx[1],
+					                GL.UNSIGNED_SHORT, eb.off[1]);
 
 					if (mTranslucent) {
-						/* drawing gl_lines with the same coordinates does not
-						 * result in same depth values as polygons, so add
-						 * offset and draw gl_lequal: */
-						GL.glDepthFunc(GL20.GL_LEQUAL);
+						/* drawing gl_lines with the same coordinates
+						 * does not result in same depth values as
+						 * polygons, so add offset and draw gl_lequal */
+						gl.depthFunc(GL.LEQUAL);
 						v.mvp.addDepthOffset(100);
 						v.mvp.setAsUniform(s.uMVP);
 					}
 
-					GL.glUniform1i(s.uMode, 3);
-					int offset = 2 * (el.indexOffset
-					        + el.numIndices[0]
-					        + el.numIndices[1]
-					        + el.numIndices[2]);
+					gl.uniform1i(s.uMode, 3);
 
-					GL.glDrawElements(GL20.GL_LINES,
-					                  el.numIndices[3],
-					                  GL20.GL_UNSIGNED_SHORT,
-					                  offset);
-
+					gl.drawElements(GL.LINES, eb.idx[3],
+					                GL.UNSIGNED_SHORT, eb.off[3]);
 				}
 
 				/* draw triangle meshes */
-				if (el.numIndices[4] > 0) {
-					int offset = 2 * (el.indexOffset
-					        + el.numIndices[0]
-					        + el.numIndices[1]
-					        + el.numIndices[2]
-					        + el.numIndices[3]);
-
-					GL.glDrawElements(GL20.GL_TRIANGLES,
-					                  el.numIndices[4],
-					                  GL20.GL_UNSIGNED_SHORT,
-					                  offset);
+				if (eb.idx[4] > 0) {
+					gl.drawElements(GL.TRIANGLES, eb.idx[4],
+					                GL.UNSIGNED_SHORT, eb.off[4]);
 				}
 			}
 
 			/* just a temporary reference! */
-			els[i] = null;
+			ebs[i] = null;
 		}
 
 		if (!mTranslucent)
-			GL.glDepthMask(false);
+			gl.depthMask(false);
 
 		if (v.pos.zoomLevel < 18)
-			GL.glDisable(GL20.GL_CULL_FACE);
-
-		GL.glBindBuffer(GL20.GL_ELEMENT_ARRAY_BUFFER, 0);
+			gl.disable(GL.CULL_FACE);
 	}
 
-	private static void setMatrix(GLViewport v, ExtrusionLayers l, boolean offset) {
+	private float getFade(ExtrusionBuckets ebs) {
+		if (ebs.animTime == 0)
+			ebs.animTime = MapRenderer.frametime - 50;
+
+		return FastMath.clamp((float) (MapRenderer.frametime - ebs.animTime) / 300f, 0f, 1f);
+	}
+
+	private void setMatrix(Shader s, GLViewport v, ExtrusionBuckets l) {
 
 		int z = l.zoomLevel;
 		double curScale = Tile.SIZE * v.pos.scale;
@@ -259,9 +258,13 @@ public abstract class ExtrusionRenderer extends LayerRenderer {
 		v.mvp.setValue(10, scale / 10);
 		v.mvp.multiplyLhs(v.viewproj);
 
-		if (offset) {
-			int delta = (int) (l.x * (1 << z)) % 4 + (int) (l.y * (1 << z)) % 4 * 4;
+		if (mTranslucent) {
+			/* should avoid z-fighting of overlapping
+			 * building from different tiles */
+			int zoom = (1 << z);
+			int delta = (int) (l.x * zoom) % 4 + (int) (l.y * zoom) % 4 * 4;
 			v.mvp.addDepthOffset(delta);
 		}
+		v.mvp.setAsUniform(s.uMVP);
 	}
 }

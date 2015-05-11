@@ -12,15 +12,15 @@ import org.oscim.layers.tile.TileSet;
 import org.oscim.renderer.ExtrusionRenderer;
 import org.oscim.renderer.GLViewport;
 import org.oscim.renderer.MapRenderer;
-import org.oscim.renderer.elements.ElementLayers;
-import org.oscim.renderer.elements.ExtrusionLayers;
+import org.oscim.renderer.bucket.ExtrusionBuckets;
+import org.oscim.renderer.bucket.RenderBuckets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BuildingRenderer extends ExtrusionRenderer {
 	static final Logger log = LoggerFactory.getLogger(BuildingRenderer.class);
 
-	private final TileRenderer mTileLayer;
+	private final TileRenderer mTileRenderer;
 	private final TileSet mTileSet;
 
 	private final int mZoomMin;
@@ -32,18 +32,18 @@ public class BuildingRenderer extends ExtrusionRenderer {
 	private long mAnimTime;
 	private boolean mShow;
 
-	public BuildingRenderer(TileRenderer tileRenderLayer, int zoomMin, int zoomMax,
+	public BuildingRenderer(TileRenderer tileRenderer, int zoomMin, int zoomMax,
 	        boolean mesh, boolean alpha) {
 		super(mesh, alpha);
 
 		mZoomMax = zoomMax;
 		mZoomMin = zoomMin;
-		mTileLayer = tileRenderLayer;
+		mTileRenderer = tileRenderer;
 		mTileSet = new TileSet();
 	}
 
 	@Override
-	protected boolean setup() {
+	public boolean setup() {
 		mAlpha = 0;
 		return super.setup();
 
@@ -89,10 +89,10 @@ public class BuildingRenderer extends ExtrusionRenderer {
 			return;
 		}
 
-		mTileLayer.getVisibleTiles(mTileSet);
+		mTileRenderer.getVisibleTiles(mTileSet);
 
 		if (mTileSet.cnt == 0) {
-			mTileLayer.releaseTiles(mTileSet);
+			mTileRenderer.releaseTiles(mTileSet);
 			setReady(false);
 			return;
 		}
@@ -101,8 +101,9 @@ public class BuildingRenderer extends ExtrusionRenderer {
 		TileDistanceSort.sort(tiles, 0, mTileSet.cnt);
 
 		/* keep a list of tiles available for rendering */
-		if (mExtrusionLayerSet == null || mExtrusionLayerSet.length < mTileSet.cnt * 4)
-			mExtrusionLayerSet = new ExtrusionLayers[mTileSet.cnt * 4];
+		int maxTiles = mTileSet.cnt * 4;
+		if (mExtrusionBucketSet.length < maxTiles)
+			mExtrusionBucketSet = new ExtrusionBuckets[maxTiles];
 
 		/* compile one tile max per frame */
 		boolean compiled = false;
@@ -114,14 +115,14 @@ public class BuildingRenderer extends ExtrusionRenderer {
 			/* TODO - if tile is not available try parent or children */
 
 			for (int i = 0; i < mTileSet.cnt; i++) {
-				ExtrusionLayers els = getLayer(tiles[i]);
-				if (els == null)
+				ExtrusionBuckets ebs = getBuckets(tiles[i]);
+				if (ebs == null)
 					continue;
 
-				if (els.compiled)
-					mExtrusionLayerSet[activeTiles++] = els;
-				else if (!compiled && els.compileLayers()) {
-					mExtrusionLayerSet[activeTiles++] = els;
+				if (ebs.compiled)
+					mExtrusionBucketSet[activeTiles++] = ebs;
+				else if (!compiled && ebs.compile()) {
+					mExtrusionBucketSet[activeTiles++] = ebs;
 					compiled = true;
 				}
 			}
@@ -137,15 +138,15 @@ public class BuildingRenderer extends ExtrusionRenderer {
 				//		if (c == t)
 				//			continue O;
 
-				ExtrusionLayers els = getLayer(t);
-				if (els == null)
+				ExtrusionBuckets ebs = getBuckets(t);
+				if (ebs == null)
 					continue;
 
-				if (els.compiled)
-					mExtrusionLayerSet[activeTiles++] = els;
+				if (ebs.compiled)
+					mExtrusionBucketSet[activeTiles++] = ebs;
 
-				else if (!compiled && els.compileLayers()) {
-					mExtrusionLayerSet[activeTiles++] = els;
+				else if (!compiled && ebs.compile()) {
+					mExtrusionBucketSet[activeTiles++] = ebs;
 					compiled = true;
 				}
 			}
@@ -158,12 +159,12 @@ public class BuildingRenderer extends ExtrusionRenderer {
 						continue;
 
 					MapTile c = t.node.child(j);
-					ExtrusionLayers el = getLayer(c);
+					ExtrusionBuckets eb = getBuckets(c);
 
-					if (el == null || !el.compiled)
+					if (eb == null || !eb.compiled)
 						continue;
 
-					mExtrusionLayerSet[activeTiles++] = el;
+					mExtrusionBucketSet[activeTiles++] = eb;
 				}
 			}
 		}
@@ -172,12 +173,12 @@ public class BuildingRenderer extends ExtrusionRenderer {
 		if (compiled)
 			MapRenderer.animate();
 
-		mExtrusionLayerCnt = activeTiles;
+		mBucketsCnt = activeTiles;
 
 		//log.debug("active tiles: {}", mExtrusionLayerCnt);
 
 		if (activeTiles == 0) {
-			mTileLayer.releaseTiles(mTileSet);
+			mTileRenderer.releaseTiles(mTileSet);
 			setReady(false);
 			return;
 		}
@@ -189,12 +190,12 @@ public class BuildingRenderer extends ExtrusionRenderer {
 		super.render(v);
 
 		/* release lock on tile data */
-		mTileLayer.releaseTiles(mTileSet);
+		mTileRenderer.releaseTiles(mTileSet);
 	}
 
-	private static ExtrusionLayers getLayer(MapTile t) {
-		ElementLayers layers = t.getLayers();
-		if (layers != null && !t.state(READY | NEW_DATA))
+	private static ExtrusionBuckets getBuckets(MapTile t) {
+		RenderBuckets buckets = t.getBuckets();
+		if (buckets != null && !t.state(READY | NEW_DATA))
 			return null;
 
 		return BuildingLayer.get(t);

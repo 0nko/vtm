@@ -16,14 +16,14 @@
  */
 package org.oscim.renderer;
 
-import org.oscim.backend.GL20;
+import static org.oscim.backend.GLAdapter.gl;
+
+import org.oscim.backend.GL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class GLState {
 	static final Logger log = LoggerFactory.getLogger(GLState.class);
-
-	private static GL20 GL;
 
 	private final static boolean[] vertexArray = { false, false };
 	private static boolean blend = false;
@@ -31,12 +31,12 @@ public class GLState {
 	private static boolean stencil = false;
 	private static int shader;
 	private static float[] clearColor;
+	private static int glVertexBuffer;
+	private static int glIndexBuffer;
 
 	private static int currentTexId;
 
-	static void init(GL20 gl) {
-		GL = gl;
-
+	static void init() {
 		vertexArray[0] = false;
 		vertexArray[1] = false;
 		blend = false;
@@ -44,18 +44,20 @@ public class GLState {
 		stencil = false;
 		shader = -1;
 		currentTexId = -1;
+		glVertexBuffer = -1;
+		glIndexBuffer = -1;
 		clearColor = null;
 
-		GL.glDisable(GL20.GL_STENCIL_TEST);
-		GL.glDisable(GL20.GL_DEPTH_TEST);
-		GL.glDisable(GL20.GL_BLEND);
+		gl.disable(GL.STENCIL_TEST);
+		gl.disable(GL.DEPTH_TEST);
+		gl.disable(GL.BLEND);
 	}
 
 	public static boolean useProgram(int shaderProgram) {
 		if (shaderProgram < 0) {
 			shader = -1;
 		} else if (shaderProgram != shader) {
-			GL.glUseProgram(shaderProgram);
+			gl.useProgram(shaderProgram);
 			shader = shaderProgram;
 			return true;
 		}
@@ -67,19 +69,31 @@ public class GLState {
 			return;
 
 		if (enable)
-			GL.glEnable(GL20.GL_BLEND);
+			gl.enable(GL.BLEND);
 		else
-			GL.glDisable(GL20.GL_BLEND);
+			gl.disable(GL.BLEND);
 		blend = enable;
+	}
+
+	public static void testDepth(boolean enable) {
+		if (depth != enable) {
+
+			if (enable)
+				gl.enable(GL.DEPTH_TEST);
+			else
+				gl.disable(GL.DEPTH_TEST);
+
+			depth = enable;
+		}
 	}
 
 	public static void test(boolean depthTest, boolean stencilTest) {
 		if (depth != depthTest) {
 
 			if (depthTest)
-				GL.glEnable(GL20.GL_DEPTH_TEST);
+				gl.enable(GL.DEPTH_TEST);
 			else
-				GL.glDisable(GL20.GL_DEPTH_TEST);
+				gl.disable(GL.DEPTH_TEST);
 
 			depth = depthTest;
 		}
@@ -87,9 +101,9 @@ public class GLState {
 		if (stencil != stencilTest) {
 
 			if (stencilTest)
-				GL.glEnable(GL20.GL_STENCIL_TEST);
+				gl.enable(GL.STENCIL_TEST);
 			else
-				GL.glDisable(GL20.GL_STENCIL_TEST);
+				gl.disable(GL.STENCIL_TEST);
 
 			stencil = stencilTest;
 		}
@@ -101,24 +115,24 @@ public class GLState {
 
 		if ((va1 == 0 || va2 == 0)) {
 			if (!vertexArray[0]) {
-				GL.glEnableVertexAttribArray(0);
+				gl.enableVertexAttribArray(0);
 				vertexArray[0] = true;
 			}
 		} else {
 			if (vertexArray[0]) {
-				GL.glDisableVertexAttribArray(0);
+				gl.disableVertexAttribArray(0);
 				vertexArray[0] = false;
 			}
 		}
 
 		if ((va1 == 1 || va2 == 1)) {
 			if (!vertexArray[1]) {
-				GL.glEnableVertexAttribArray(1);
+				gl.enableVertexAttribArray(1);
 				vertexArray[1] = true;
 			}
 		} else {
 			if (vertexArray[1]) {
-				GL.glDisableVertexAttribArray(1);
+				gl.disableVertexAttribArray(1);
 				vertexArray[1] = false;
 			}
 		}
@@ -126,10 +140,10 @@ public class GLState {
 
 	public static void bindTex2D(int id) {
 		if (id < 0) {
-			GL.glBindTexture(GL20.GL_TEXTURE_2D, 0);
+			gl.bindTexture(GL.TEXTURE_2D, 0);
 			currentTexId = 0;
 		} else if (currentTexId != id) {
-			GL.glBindTexture(GL20.GL_TEXTURE_2D, id);
+			gl.bindTexture(GL.TEXTURE_2D, id);
 			currentTexId = id;
 		}
 	}
@@ -143,6 +157,51 @@ public class GLState {
 			return;
 
 		clearColor = color;
-		GL.glClearColor(color[0], color[1], color[2], color[3]);
+		gl.clearColor(color[0], color[1], color[2], color[3]);
+	}
+
+	public static void bindBuffer(int target, int id) {
+		//log.debug(">> buffer {} {}", target == GL20.ARRAY_BUFFER, id);
+
+		if (target == GL.ARRAY_BUFFER) {
+			if (glVertexBuffer == id)
+				return;
+			glVertexBuffer = id;
+		}
+		else if (target == GL.ELEMENT_ARRAY_BUFFER) {
+			if (glIndexBuffer == id)
+				return;
+			glIndexBuffer = id;
+		}
+		else {
+			log.debug("invalid target {}", target);
+			return;
+		}
+		//log.debug("bind buffer {} {}", target == GL20.ARRAY_BUFFER, id);
+
+		if (id >= 0)
+			gl.bindBuffer(target, id);
+	}
+
+	public static void bindElementBuffer(int id) {
+
+		if (glIndexBuffer == id)
+			return;
+		glIndexBuffer = id;
+
+		if (id >= 0)
+			gl.bindBuffer(GL.ELEMENT_ARRAY_BUFFER, id);
+
+	}
+
+	public static void bindVertexBuffer(int id) {
+
+		if (glVertexBuffer == id)
+			return;
+		glVertexBuffer = id;
+
+		if (id >= 0)
+			gl.bindBuffer(GL.ARRAY_BUFFER, id);
+
 	}
 }

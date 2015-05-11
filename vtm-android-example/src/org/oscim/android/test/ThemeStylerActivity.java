@@ -49,8 +49,8 @@ public class ThemeStylerActivity extends BaseMapActivity implements OnSeekBarCha
 	}
 
 	class ModStyleVisitor extends RuleVisitor {
-		private final LineBuilder lineBuilder = new LineBuilder();
-		private final AreaBuilder areaBuilder = new AreaBuilder();
+		private final LineBuilder<?> lineBuilder = LineStyle.builder();
+		private final AreaBuilder<?> areaBuilder = AreaStyle.builder();
 
 		@Override
 		public void apply(Rule r) {
@@ -81,15 +81,7 @@ public class ThemeStylerActivity extends BaseMapActivity implements OnSeekBarCha
 					s.set(areaBuilder.set(s)
 					    .color(modColor(s.color, areaColor))
 					    .blendColor(modColor(s.blendColor, areaColor))
-					    .build());
-
-					if (s.outline == null)
-						continue;
-
-					s.outline.set(lineBuilder.set(s.outline)
-					    .color(modColor(s.outline.color, areaColor))
-					    .stippleColor(modColor(s.outline.stippleColor,
-					                           areaColor))
+					    .strokeColor(modColor(s.strokeColor, areaColor))
 					    .build());
 				}
 			}

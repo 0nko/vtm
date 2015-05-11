@@ -22,8 +22,49 @@ import org.oscim.layers.tile.bitmap.BitmapTileLayer.FadeStep;
 
 public abstract class TileSource {
 
+	public abstract static class Builder<T extends Builder<T>> {
+		protected int zoomMin, zoomMax;
+		protected FadeStep[] fadeSteps;
+
+		public T zoomMin(int zoom) {
+			zoomMin = zoom;
+			return self();
+		}
+
+		public T zoomMax(int zoom) {
+			zoomMax = zoom;
+			return self();
+		}
+
+		public T fadeSteps(FadeStep[] fadeSteps) {
+			this.fadeSteps = fadeSteps;
+			return self();
+		}
+
+		@SuppressWarnings("unchecked")
+		protected T self() {
+			return (T) this;
+		}
+
+		public abstract TileSource build();
+	}
+
 	protected int mZoomMin = 0;
 	protected int mZoomMax = 20;
+
+	protected TileSource() {
+	}
+
+	protected TileSource(int zoomMin, int zoomMax) {
+		mZoomMin = zoomMin;
+		mZoomMax = zoomMax;
+	}
+
+	public TileSource(Builder<?> builder) {
+		mZoomMin = builder.zoomMin;
+		mZoomMax = builder.zoomMax;
+		mFadeSteps = builder.fadeSteps;
+	}
 
 	public abstract ITileDataSource getDataSource();
 
@@ -34,6 +75,8 @@ public abstract class TileSource {
 	protected final Options options = new Options();
 
 	public ITileCache tileCache;
+
+	private FadeStep[] mFadeSteps;
 
 	/**
 	 * Cache MUST be set before TileSource is added to a TileLayer!
@@ -51,7 +94,7 @@ public abstract class TileSource {
 	}
 
 	public FadeStep[] getFadeSteps() {
-		return null;
+		return mFadeSteps;
 	}
 
 	public TileSource setOption(String key, String value) {

@@ -17,23 +17,23 @@
 package org.oscim.test.renderer;
 
 import org.oscim.backend.CanvasAdapter;
-import org.oscim.renderer.ElementRenderer;
+import org.oscim.renderer.BucketRenderer;
 import org.oscim.renderer.GLViewport;
-import org.oscim.renderer.elements.SymbolItem;
-import org.oscim.renderer.elements.SymbolLayer;
+import org.oscim.renderer.bucket.SymbolBucket;
+import org.oscim.renderer.bucket.SymbolItem;
 
-public class SymbolRenderLayer extends ElementRenderer {
+public class SymbolRenderLayer extends BucketRenderer {
 	boolean initialize = true;
 
 	public SymbolRenderLayer() {
-		SymbolLayer l = new SymbolLayer();
-		layers.setTextureLayers(l);
+		SymbolBucket l = new SymbolBucket();
+		buckets.set(l);
 
 		SymbolItem it = SymbolItem.pool.get();
 		it.billboard = false;
 
 		try {
-			it.bitmap = CanvasAdapter.g.loadBitmapAsset("jar:symbols/cafe.png");
+			it.bitmap = CanvasAdapter.getBitmapAsset("jar:symbols/cafe.png");
 		} catch (Exception e) {
 			e.printStackTrace();
 
@@ -42,7 +42,7 @@ public class SymbolRenderLayer extends ElementRenderer {
 	}
 
 	@Override
-	protected void update(GLViewport v) {
+	public void update(GLViewport v) {
 		if (initialize) {
 			initialize = false;
 			mMapPosition.copy(v.pos);

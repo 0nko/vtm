@@ -34,7 +34,7 @@ import android.graphics.drawable.Drawable;
 public final class AndroidGraphics extends CanvasAdapter {
 
 	public static void init() {
-		g = new AndroidGraphics();
+		CanvasAdapter.init(new AndroidGraphics());
 	}
 
 	public static android.graphics.Paint getAndroidPaint(Paint paint) {
@@ -46,12 +46,12 @@ public final class AndroidGraphics extends CanvasAdapter {
 	}
 
 	@Override
-	public Bitmap decodeBitmap(InputStream inputStream) {
+	public Bitmap decodeBitmapImpl(InputStream inputStream) {
 		return new AndroidBitmap(inputStream);
 	}
 
 	@Override
-	public Bitmap loadBitmapAsset(String fileName) {
+	public Bitmap loadBitmapAssetImpl(String fileName) {
 		try {
 			return createBitmap(fileName);
 		} catch (IOException e) {
@@ -61,17 +61,17 @@ public final class AndroidGraphics extends CanvasAdapter {
 	}
 
 	@Override
-	public Paint getPaint() {
+	public Paint newPaintImpl() {
 		return new AndroidPaint();
 	}
 
 	@Override
-	public Bitmap getBitmap(int width, int height, int format) {
+	public Bitmap newBitmapImpl(int width, int height, int format) {
 		return new AndroidBitmap(width, height, format);
 	}
 
 	@Override
-	public Canvas getCanvas() {
+	public Canvas newCanvasImpl() {
 		return new AndroidCanvas();
 	}
 
@@ -93,6 +93,13 @@ public final class AndroidGraphics extends CanvasAdapter {
 		return new AndroidBitmap(bitmap);
 	}
 
+	public static Bitmap drawableToBitmap(Resources res, int resId) {
+		return new AndroidBitmap(res.openRawResource(resId));
+	}
+
+	/**
+	 * @deprecated
+	 */
 	public static MarkerSymbol makeMarker(Drawable drawable, HotspotPlace place) {
 		if (place == null)
 			place = HotspotPlace.CENTER;
@@ -100,6 +107,9 @@ public final class AndroidGraphics extends CanvasAdapter {
 		return new MarkerSymbol(drawableToBitmap(drawable), place);
 	}
 
+	/**
+	 * @deprecated
+	 */
 	public static MarkerSymbol makeMarker(Resources res, int resId, HotspotPlace place) {
 		if (place == null)
 			place = HotspotPlace.CENTER;

@@ -16,7 +16,7 @@
  */
 package org.oscim.layers.tile.vector;
 
-import static org.oscim.layers.tile.MapTile.State.CANCEL;
+import static org.oscim.layers.tile.MapTile.State.LOADING;
 
 import org.oscim.core.GeometryBuffer.GeometryType;
 import org.oscim.core.MapElement;
@@ -26,11 +26,11 @@ import org.oscim.core.TagSet;
 import org.oscim.core.Tile;
 import org.oscim.layers.tile.MapTile;
 import org.oscim.layers.tile.TileLoader;
-import org.oscim.renderer.elements.ElementLayers;
-import org.oscim.renderer.elements.LineLayer;
-import org.oscim.renderer.elements.LineTexLayer;
-import org.oscim.renderer.elements.MeshLayer;
-import org.oscim.renderer.elements.PolygonLayer;
+import org.oscim.renderer.bucket.LineBucket;
+import org.oscim.renderer.bucket.LineTexBucket;
+import org.oscim.renderer.bucket.MeshBucket;
+import org.oscim.renderer.bucket.PolygonBucket;
+import org.oscim.renderer.bucket.RenderBuckets;
 import org.oscim.theme.IRenderTheme;
 import org.oscim.theme.RenderTheme;
 import org.oscim.theme.styles.AreaStyle;
@@ -44,7 +44,7 @@ import org.oscim.tiling.ITileDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class VectorTileLoader extends TileLoader implements IRenderTheme.Callback {
+public class VectorTileLoader extends TileLoader implements RenderStyle.Callback {
 
 	static final Logger log = LoggerFactory.getLogger(VectorTileLoader.class);
 
@@ -62,16 +62,16 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 	/** currently processed MapElement */
 	protected MapElement mElement;
 
-	/** current line layer (will be used for outline layers) */
-	protected LineLayer mCurLineLayer;
+	/** current line bucket (will be used for outline bucket) */
+	protected LineBucket mCurLineBucket;
 
-	/** Current layer for adding elements */
-	protected int mCurLayer;
+	/** Current bucket for adding elements */
+	protected int mCurBucket;
 
 	/** Line-scale-factor depending on zoom and latitude */
 	protected float mLineScale = 1.0f;
 
-	protected ElementLayers mLayers;
+	protected RenderBuckets mBuckets;
 
 	private final VectorTileLayer mTileLayer;
 
@@ -81,9 +81,15 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 	}
 
 	@Override
-	public void cleanup() {
+	public void dispose() {
 		if (mTileDataSource != null)
-			mTileDataSource.destroy();
+			mTileDataSource.dispose();
+	}
+
+	@Override
+	public void cancel() {
+		if (mTileDataSource != null)
+			mTileDataSource.cancel();
 	}
 
 	@Override
@@ -109,8 +115,8 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 
 		/* scale line width relative to latitude + PI * thumb */
 		mLineScale *= 0.4f + 0.6f * ((float) Math.sin(Math.abs(lat) * (Math.PI / 180)));
-		mLayers = new ElementLayers();
-		tile.data = mLayers;
+		mBuckets = new RenderBuckets();
+		tile.data = mBuckets;
 
 		try {
 			/* query data source, which calls process() callback */
@@ -128,10 +134,15 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 
 	@Override
 	public void completed(QueryResult result) {
-		mTileLayer.callHooksComplete(mTile, result == QueryResult.SUCCESS);
+		boolean ok = (result == QueryResult.SUCCESS);
+
+		mTileLayer.callHooksComplete(mTile, ok);
+
+		/* finish buckets- tessellate and cleanup on worker-thread */
+		mBuckets.prepare();
+		clearState();
 
 		super.completed(result);
-		clearState();
 	}
 
 	protected static int getValidLayer(int layer) {
@@ -145,7 +156,7 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 	}
 
 	public void setDataSource(ITileDataSource dataSource) {
-		cleanup();
+		dispose();
 		mTileDataSource = dataSource;
 	}
 
@@ -170,10 +181,10 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 
 	@Override
 	public void process(MapElement element) {
-		if (isCanceled() || mTile.state(CANCEL))
+		if (isCanceled() || !mTile.state(LOADING))
 			return;
 
-		if (mTileLayer.callProcessHooks(mTile, mLayers, element))
+		if (mTileLayer.callProcessHooks(mTile, mBuckets, element))
 			return;
 
 		TagSet tags = filterTags(element.tags);
@@ -186,31 +197,16 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 		if (element.type == GeometryType.POINT) {
 			renderNode(renderTheme.matchElement(element.type, tags, mTile.zoomLevel));
 		} else {
-			mCurLayer = getValidLayer(element.layer) * renderTheme.getLevels();
+			mCurBucket = getValidLayer(element.layer) * renderTheme.getLevels();
 			renderWay(renderTheme.matchElement(element.type, tags, mTile.zoomLevel));
 		}
 		clearState();
 	}
 
-	//	private final static LineStyle DEBUG_LINE =
-	//	        new LineStyle(Integer.MAX_VALUE / 12, Color.MAGENTA, 1.2f);
-	//
-	//	private final static TextStyle DEBUG_TEXT = new TextBuilder()
-	//	    .setFontSize(12)
-	//	    .setColor(Color.RED)
-	//	    .setCaption(true)
-	//	    .setTextKey(Tag.KEY_NAME)
-	//	    .build();
-
 	protected void renderWay(RenderStyle[] style) {
-		if (style == null) {
-			//	DEBUG_LINE.renderWay(this);
-			//	String t = mElement.tags.toString();
-			//	mElement.tags.clear();
-			//	mElement.tags.add(new Tag(Tag.KEY_NAME, t));
-			//	DEBUG_TEXT.renderWay(this);
+		if (style == null)
 			return;
-		}
+
 		for (int i = 0, n = style.length; i < n; i++)
 			style[i].renderWay(this);
 	}
@@ -224,54 +220,54 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 	}
 
 	protected void clearState() {
-		mCurLineLayer = null;
+		mCurLineBucket = null;
 		mElement = null;
 	}
 
 	/*** RenderThemeCallback ***/
 	@Override
 	public void renderWay(LineStyle line, int level) {
-		int numLayer = mCurLayer + level;
+		int nLevel = mCurBucket + level;
 
 		if (line.stipple == 0) {
-			if (line.outline && mCurLineLayer == null) {
+			if (line.outline && mCurLineBucket == null) {
 				log.debug("missing line for outline! " + mElement.tags
 				        + " lvl:" + level + " layer:" + mElement.layer);
 				return;
 			}
 
-			LineLayer ll = mLayers.getLineLayer(numLayer);
+			LineBucket lb = mBuckets.getLineBucket(nLevel);
 
-			if (ll.line == null) {
-				ll.line = line;
-				ll.scale = line.fixed ? 1 : mLineScale;
-				ll.setExtents(-4, Tile.SIZE + 4);
+			if (lb.line == null) {
+				lb.line = line;
+				lb.scale = line.fixed ? 1 : mLineScale;
+				lb.setExtents(-4, Tile.SIZE + 4);
 			}
 
 			if (line.outline) {
-				ll.addOutline(mCurLineLayer);
+				lb.addOutline(mCurLineBucket);
 				return;
 			}
 
-			ll.addLine(mElement);
+			lb.addLine(mElement);
 
 			/* keep reference for outline layer(s) */
-			mCurLineLayer = ll;
+			mCurLineBucket = lb;
 
 		} else {
-			LineTexLayer ll = mLayers.getLineTexLayer(numLayer);
+			LineTexBucket lb = mBuckets.getLineTexBucket(nLevel);
 
-			if (ll.line == null) {
-				ll.line = line;
+			if (lb.line == null) {
+				lb.line = line;
 
 				float w = line.width;
 				if (!line.fixed)
 					w *= mLineScale;
 
-				ll.width = w;
+				lb.width = w;
 			}
 
-			ll.addLine(mElement);
+			lb.addLine(mElement);
 		}
 	}
 
@@ -281,26 +277,31 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 
 	@Override
 	public void renderArea(AreaStyle area, int level) {
-		int numLayer = mCurLayer + level;
+		/* dont add faded out polygon layers */
+		if (mTile.zoomLevel < area.fadeScale)
+			return;
+
+		int nLevel = mCurBucket + level;
+
 		if (USE_MESH_POLY) {
-			MeshLayer l = mLayers.getMeshLayer(numLayer);
-			l.area = area;
-			l.addMesh(mElement);
+			MeshBucket mb = mBuckets.getMeshBucket(nLevel);
+			mb.area = area;
+			mb.addMesh(mElement);
 		} else {
-			PolygonLayer l = mLayers.getPolygonLayer(numLayer);
-			l.area = area;
-			l.addPolygon(mElement.points, mElement.index);
+			PolygonBucket pb = mBuckets.getPolygonBucket(nLevel);
+			pb.area = area;
+			pb.addPolygon(mElement.points, mElement.index);
 		}
 	}
 
 	@Override
 	public void renderSymbol(SymbolStyle symbol) {
-		mTileLayer.callThemeHooks(mTile, mLayers, mElement, symbol, 0);
+		mTileLayer.callThemeHooks(mTile, mBuckets, mElement, symbol, 0);
 	}
 
 	@Override
 	public void renderExtrusion(ExtrusionStyle extrusion, int level) {
-		mTileLayer.callThemeHooks(mTile, mLayers, mElement, extrusion, level);
+		mTileLayer.callThemeHooks(mTile, mBuckets, mElement, extrusion, level);
 	}
 
 	@Override
@@ -309,6 +310,6 @@ public class VectorTileLoader extends TileLoader implements IRenderTheme.Callbac
 
 	@Override
 	public void renderText(TextStyle text) {
-		mTileLayer.callThemeHooks(mTile, mLayers, mElement, text, 0);
+		mTileLayer.callThemeHooks(mTile, mBuckets, mElement, text, 0);
 	}
 }

@@ -50,6 +50,16 @@ public abstract class TileLayer extends Layer implements UpdateListener {
 
 	}
 
+	public TileLayer(Map map, TileManager tileManager) {
+		super(map);
+		mTileManager = tileManager;
+	}
+
+	protected void setRenderer(TileRenderer renderer) {
+		renderer.setTileManager(mTileManager);
+		mRenderer = renderer;
+	}
+
 	abstract protected TileLoader createLoader();
 
 	public TileRenderer tileRenderer() {
@@ -95,8 +105,8 @@ public abstract class TileLayer extends Layer implements UpdateListener {
 	public void onDetach() {
 		for (TileLoader loader : mTileLoader) {
 			loader.pause();
-			loader.interrupt();
-			loader.cleanup();
+			loader.finish();
+			loader.dispose();
 		}
 	}
 
@@ -107,9 +117,12 @@ public abstract class TileLayer extends Layer implements UpdateListener {
 
 	protected void pauseLoaders(boolean wait) {
 		for (TileLoader loader : mTileLoader) {
+			loader.cancel();
+
 			if (!loader.isPausing())
 				loader.pause();
 		}
+
 		if (!wait)
 			return;
 

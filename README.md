@@ -1,8 +1,8 @@
 #  *\<vector\<tile\>\>map*
 
 <br/>
-http://www.opensciencemap.org<br/>
-VTM is part of the OpenScienceMap project and developed at University of Bremen.
+
+VTM is developed within the [OpenScienceMap](http://opensciencemap.org) project.
 
 ## Features
 - Java map library
@@ -11,7 +11,7 @@ VTM is part of the OpenScienceMap project and developed at University of Bremen.
 - Support for multiple tile sources:
   - primary opensciencemap (.vtm)
   - mapsforge files
-  - experimental mapnik-vector-tile source
+  - GeoJSON tiles
   - bitmap: any quadtree-scheme tiles as texture
 - Backends:
   - Android
@@ -23,7 +23,6 @@ VTM is part of the OpenScienceMap project and developed at University of Bremen.
 - **vtm** contains the core library
 - **vtm-android** Android backend  (no libgdx required)
 - **vtm-android-example** provides examples using **vtm-android**
-- **vtm-android-app** opensciencemap app using **vtm-android**
 - **vtm-gdx** common libgdx backend code
 - **vtm-android-gdx** Android application
 - **vtm-desktop** Desktop application
@@ -31,21 +30,20 @@ VTM is part of the OpenScienceMap project and developed at University of Bremen.
 - **vtm-web-app** HTML5/GWT application
 - **vtm-ios** iOS application
 
+The libgdx backends for GWT and iOS are very experimental. 
+
+
 ## Getting started
 
 `git clone --recursive https://github.com/opensciencemap/vtm`
 
-Install Android SDK and build-tools 19.1. From extras add
+Install Android SDK and build-tools 20.0. From extras add
 'Android Support Library/Repository' and 'Google Repository'.
 The commands below should set things up correctly when Android
 SDK is already installed.
 ```
 export ANDROID_HOME=/path/to/your/android-sdk
 ./android-stuff.sh
-```
-To use a different  build-tools version X run:
-```
-find -name build.gradle | xargs sed -i 's/19\.1/19.X/g'
 ```
 
 ### Eclipse
@@ -60,15 +58,13 @@ Just import build.gradle
 You can run gradle tasks directly (see also `./gradlew -q tasks`):<br/>
 `./gradlew clean install` <br/> to build the libraries and add them to the local maven repository.<br/>
 `./gradlew :vtm-android-example:run` <br/> to run the android example<br/>
-`./gradlew :vtm-gdx-desktop:run` <br/>to run the desktop demo (only Linux64 and Win64 native libs are provided atm)<br/>
-`./gradlew :vtm-gdx-html:jettyDraftWar` <br/>to run the webgl demo<br/>
+`./gradlew :vtm-desktop:run` <br/>to run the desktop demo (only Linux64 and Win64 native libs are provided atm)<br/>
+`./gradlew :vtm-web-app:jettyDraftWar` <br/>to run the webgl demo<br/>
 
 
 ## WebGL Demo
-[OpenScienceMap](http://opensciencemap.org/map/#scale=17,rot=61,tilt=51,lat=53.075,lon=8.807)
+[OpenScienceMap](http://opensciencemap.org/s3db/#scale=17,rot=61,tilt=51,lat=53.075,lon=8.807) view of Bremen.
 - hold right mouse button to change view direction
-- Keys: `g` toggle tile-grid layer `d` default- `t` tubes- `r` osmarender-theme
-
 
 
 ## Credits
@@ -78,3 +74,4 @@ This library contains code from several projects:
 - **libgdx**: AsyncTask, MathUtils and Interpolation classes (https://github.com/libgdx)
 - **Android**: some Matrix code, TimSort (http://source.android.com)
 - **tessellate**: (https://github.com/cscheid/tessellate)
+

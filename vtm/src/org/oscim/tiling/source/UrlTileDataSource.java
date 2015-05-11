@@ -71,38 +71,40 @@ public class UrlTileDataSource implements ITileDataSource {
 			}
 		}
 
-		boolean success = false;
+		boolean ok = false;
 		TileWriter cacheWriter = null;
 		try {
 			mConn.sendRequest(tile);
 			InputStream is = mConn.read();
-			if (is == null) {
-				log.debug("{} Network Error", tile);
-			} else {
-				if (mUseCache) {
-					cacheWriter = cache.writeTile(tile);
-					mConn.setCache(cacheWriter.getOutputStream());
-				}
-				success = mTileDecoder.decode(tile, sink, is);
+			if (mUseCache) {
+				cacheWriter = cache.writeTile(tile);
+				mConn.setCache(cacheWriter.getOutputStream());
 			}
+			ok = mTileDecoder.decode(tile, sink, is);
 		} catch (SocketException e) {
-			log.debug("{} Socket exception: {}", tile, e.getMessage());
+			log.debug("{} Socket Error: {}", tile, e.getMessage());
 		} catch (SocketTimeoutException e) {
 			log.debug("{} Socket Timeout", tile);
 		} catch (UnknownHostException e) {
 			log.debug("{} Unknown host: {}", tile, e.getMessage());
 		} catch (IOException e) {
-			e.printStackTrace();
+			log.debug("{} Network Error: {}", tile, e.getMessage());
 		} finally {
-			success = mConn.requestCompleted(success);
+			ok = mConn.requestCompleted(ok);
 			if (cacheWriter != null)
-				cacheWriter.complete(success);
+				cacheWriter.complete(ok);
+
+			sink.completed(ok ? SUCCESS : FAILED);
 		}
-		sink.completed(success ? SUCCESS : FAILED);
 	}
 
 	@Override
-	public void destroy() {
+	public void dispose() {
+		mConn.close();
+	}
+
+	@Override
+	public void cancel() {
 		mConn.close();
 	}
 }

@@ -45,6 +45,10 @@ public class MapFileTileSource extends TileSource {
 	File mapFile;
 	RandomAccessFile mInputFile;
 
+	public MapFileTileSource() {
+		super(0, 17);
+	}
+
 	public boolean setMapFile(String filename) {
 		setOption("file", filename);
 

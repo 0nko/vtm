@@ -1,14 +1,16 @@
 package org.oscim.test.renderer;
 
+import static org.oscim.backend.GLAdapter.gl;
+
 import java.nio.FloatBuffer;
 
-import org.oscim.backend.GL20;
+import org.oscim.backend.GL;
 import org.oscim.backend.canvas.Color;
 import org.oscim.gdx.GdxMap;
 import org.oscim.gdx.GdxMapApp;
 import org.oscim.layers.GenericLayer;
+import org.oscim.renderer.BucketRenderer;
 import org.oscim.renderer.BufferObject;
-import org.oscim.renderer.ElementRenderer;
 import org.oscim.renderer.GLShader;
 import org.oscim.renderer.GLState;
 import org.oscim.renderer.GLUtils;
@@ -35,7 +37,7 @@ public class HexagonRenderTest extends GdxMap {
 	 * based on chapter 2 from:
 	 * https://github.com/dalinaum/opengl-es-book-samples/tree/master/Android */
 
-	static class HexagonRenderer extends ElementRenderer {
+	static class HexagonRenderer extends BucketRenderer {
 
 		private int mProgramObject;
 		private int hVertexPosition;
@@ -51,7 +53,7 @@ public class HexagonRenderTest extends GdxMap {
 		float mCellScale = 60 * MapRenderer.COORD_SCALE;
 
 		@Override
-		protected void update(GLViewport v) {
+		public void update(GLViewport v) {
 			if (!mInitialized) {
 				if (!init()) {
 					return;
@@ -80,14 +82,14 @@ public class HexagonRenderTest extends GdxMap {
 			FloatBuffer buf = MapRenderer.getFloatBuffer(12);
 			buf.put(vertices);
 
-			mVBO = BufferObject.get(GL20.GL_ARRAY_BUFFER, 0);
+			mVBO = BufferObject.get(GL.ARRAY_BUFFER, 0);
 			mVBO.loadBufferData(buf.flip(), 12 * 4);
 
 			setReady(true);
 		}
 
 		@Override
-		protected void render(GLViewport v) {
+		public void render(GLViewport v) {
 
 			// Use the program object
 			GLState.useProgram(mProgramObject);
@@ -99,7 +101,7 @@ public class HexagonRenderTest extends GdxMap {
 			mVBO.bind();
 
 			// set VBO vertex layout
-			GL.glVertexAttribPointer(hVertexPosition, 2, GL20.GL_FLOAT, false, 0, 0);
+			gl.vertexAttribPointer(hVertexPosition, 2, GL.FLOAT, false, 0, 0);
 
 			GLState.enableVertexArrays(hVertexPosition, -1);
 
@@ -118,7 +120,7 @@ public class HexagonRenderTest extends GdxMap {
 					float xx = x * 2 + (y % 2 == 0 ? 1 : 0);
 					float yy = y * h + h / 2;
 
-					GL.glUniform2f(hCenterPosition, xx * (mCellScale * 1.5f), yy * mCellScale);
+					gl.uniform2f(hCenterPosition, xx * (mCellScale * 1.5f), yy * mCellScale);
 
 					//float alpha = 1 + (float) Math.log10(FastMath.clamp(
 					//		(float) Math.sqrt(xx * xx + yy * yy) / offset_y, 0.0f, 1.0f)) * 2;
@@ -141,7 +143,7 @@ public class HexagonRenderTest extends GdxMap {
 
 					GLUtils.setColor(hColorPosition, c, alpha);
 
-					GL.glDrawArrays(GL20.GL_TRIANGLE_FAN, 0, 6);
+					gl.drawArrays(GL.TRIANGLE_FAN, 0, 6);
 				}
 			}
 
@@ -152,8 +154,8 @@ public class HexagonRenderTest extends GdxMap {
 					float xx = x * 2 + (y % 2 == 0 ? 1 : 0);
 					float yy = y * h + h / 2;
 
-					GL.glUniform2f(hCenterPosition, xx * (mCellScale * 1.5f), yy * mCellScale);
-					GL.glDrawArrays(GL20.GL_LINE_LOOP, 0, 6);
+					gl.uniform2f(hCenterPosition, xx * (mCellScale * 1.5f), yy * mCellScale);
+					gl.drawArrays(GL.LINE_LOOP, 0, 6);
 				}
 			}
 
@@ -168,13 +170,13 @@ public class HexagonRenderTest extends GdxMap {
 				return false;
 
 			// Handle for vertex position in shader
-			hVertexPosition = GL.glGetAttribLocation(programObject, "a_pos");
+			hVertexPosition = gl.getAttribLocation(programObject, "a_pos");
 
-			hMatrixPosition = GL.glGetUniformLocation(programObject, "u_mvp");
+			hMatrixPosition = gl.getUniformLocation(programObject, "u_mvp");
 
-			hColorPosition = GL.glGetUniformLocation(programObject, "u_color");
+			hColorPosition = gl.getUniformLocation(programObject, "u_color");
 
-			hCenterPosition = GL.glGetUniformLocation(programObject, "u_center");
+			hCenterPosition = gl.getUniformLocation(programObject, "u_center");
 
 			// Store the program object
 			mProgramObject = programObject;

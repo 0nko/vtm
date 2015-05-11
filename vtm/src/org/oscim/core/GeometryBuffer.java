@@ -16,11 +16,10 @@
  */
 package org.oscim.core;
 
-// TODO
-// - getter methods!
-// - check indexPos < Short.Max
-// - should make internals private, maybe
-
+/* TODO
+ * - check indexPos < Short.Max
+ * - should make internals private, maybe
+ */
 /**
  * The GeometryBuffer class holds temporary geometry data for processing.
  * Only One geometry type can be set at a time. Use 'clear()' to reset the
@@ -57,7 +56,7 @@ public class GeometryBuffer {
 	public float[] points;
 
 	/** The indexes. */
-	public short[] index;
+	public int[] index;
 
 	/** The current index position. */
 	public int indexPos;
@@ -77,11 +76,11 @@ public class GeometryBuffer {
 	 * @param points the points
 	 * @param index the index
 	 */
-	public GeometryBuffer(float[] points, short[] index) {
+	public GeometryBuffer(float[] points, int[] index) {
 		if (points == null)
 			points = new float[GROW_POINTS];
 		if (index == null)
-			index = new short[GROW_INDICES];
+			index = new int[GROW_INDICES];
 
 		this.points = points;
 		this.index = index;
@@ -91,10 +90,32 @@ public class GeometryBuffer {
 		this.pointLimit = points.length - 2;
 	}
 
+	/**
+	 * @param out PointF to set coordinates to.
+	 * @return when out is null a temporary PointF is
+	 *         returned which belongs to GeometryBuffer.
+	 */
+	public void getPoint(int i, PointF out) {
+		out.x = points[(i << 1)];
+		out.y = points[(i << 1) + 1];
+	}
+
+	public float getPointX(int i) {
+		return points[(i << 1)];
+	}
+
+	public float getPointY(int i) {
+		return points[(i << 1) + 1];
+	}
+
+	/**
+	 * @return PointF belongs to GeometryBuffer.
+	 */
 	public PointF getPoint(int i) {
-		mTmpPoint.x = points[(i << 1)];
-		mTmpPoint.y = points[(i << 1) + 1];
-		return mTmpPoint;
+		PointF out = mTmpPoint;
+		out.x = points[(i << 1)];
+		out.y = points[(i << 1) + 1];
+		return out;
 	}
 
 	public int getNumPoints() {
@@ -108,10 +129,9 @@ public class GeometryBuffer {
 	 * @param numIndices the num indices
 	 */
 	public GeometryBuffer(int numPoints, int numIndices) {
-		this(new float[numPoints * 2], new short[numIndices]);
+		this(new float[numPoints * 2], new int[numIndices]);
 	}
 
-	// ---- API ----
 	/**
 	 * Reset buffer.
 	 */
@@ -176,18 +196,18 @@ public class GeometryBuffer {
 	public GeometryBuffer startLine() {
 		setOrCheckMode(GeometryType.LINE);
 
-		// ignore
+		/* ignore */
 		if (index[indexPos] > 0) {
 
-			// start next
+			/* start next */
 			if ((index[0] >= 0) && (++indexPos >= index.length))
 				ensureIndexSize(indexPos, true);
 
-			// initialize with zero points
+			/* initialize with zero points */
 			index[indexPos] = 0;
 		}
 
-		// set new end marker
+		/* set new end marker */
 		if (index.length > indexPos + 1)
 			index[indexPos + 1] = -1;
 		return this;
@@ -204,17 +224,17 @@ public class GeometryBuffer {
 			ensureIndexSize(indexPos + 2, true);
 
 		if (!start && index[indexPos] != 0) {
-			// end polygon
+			/* end polygon */
 			index[++indexPos] = 0;
 
-			// next polygon start
+			/* next polygon start */
 			indexPos++;
 		}
 
-		// initialize with zero points
+		/* initialize with zero points */
 		index[indexPos] = 0;
 
-		// set new end marker
+		/* set new end marker */
 		if (index.length > indexPos + 1)
 			index[indexPos + 1] = -1;
 
@@ -230,10 +250,10 @@ public class GeometryBuffer {
 		if ((indexPos + 2) > index.length)
 			ensureIndexSize(indexPos + 1, true);
 
-		// initialize with zero points
+		/* initialize with zero points */
 		index[++indexPos] = 0;
 
-		// set new end marker
+		/* set new end marker */
 		if (index.length > indexPos + 1)
 			index[indexPos + 1] = -1;
 	}
@@ -284,11 +304,11 @@ public class GeometryBuffer {
 	 * @param copy the copy
 	 * @return the short[] array holding current index
 	 */
-	public short[] ensureIndexSize(int size, boolean copy) {
+	public int[] ensureIndexSize(int size, boolean copy) {
 		if (size < index.length)
 			return index;
 
-		short[] newIndex = new short[size + GROW_INDICES];
+		int[] newIndex = new int[size + GROW_INDICES];
 		if (copy)
 			System.arraycopy(index, 0, newIndex, 0, index.length);
 
@@ -316,6 +336,65 @@ public class GeometryBuffer {
 		addPoint((float) p.x, (float) p.y);
 	}
 
+	public void addPoint(PointF p) {
+		addPoint(p.x, p.y);
+	}
+
+	/**
+	 * Remove points with distance less than minSqDist
+	 * 
+	 * TODO could avoid superfluous copying
+	 * 
+	 * @param minSqDist
+	 * @param keepLines keep endpoint when line would
+	 *            otherwise collapse into a single point
+	 */
+	public void simplify(float minSqDist, boolean keepLines) {
+		int outPos = 0;
+		int inPos = 0;
+		for (int idx = 0; idx < index.length; idx++) {
+			if (index[idx] < 0)
+				break;
+			if (index[idx] == 0)
+				continue;
+
+			int first = inPos;
+			float px = points[inPos++];
+			float py = points[inPos++];
+
+			/* add first point */
+			points[outPos++] = px;
+			points[outPos++] = py;
+			int cnt = 2;
+
+			for (int pt = 2, end = index[idx]; pt < end; pt += 2) {
+				float cx = points[inPos++];
+				float cy = points[inPos++];
+				float dx = cx - px;
+				float dy = cy - py;
+
+				if ((dx * dx + dy * dy) < minSqDist) {
+					if (!keepLines || (pt < end - 2))
+						continue;
+				}
+				px = cx;
+				py = cy;
+				points[outPos++] = cx;
+				points[outPos++] = cy;
+				cnt += 2;
+			}
+
+			if ((type == GeometryType.POLY) &&
+			        (points[first] == px) &&
+			        (points[first + 1] == py)) {
+				/* remove identical start/end point */
+				cnt -= 2;
+				outPos -= 2;
+			}
+			index[idx] = cnt;
+		}
+	}
+
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		int o = 0;
@@ -324,6 +403,9 @@ public class GeometryBuffer {
 				break;
 			if (index[i] == 0)
 				continue;
+			sb.append(":");
+			sb.append(index[i]);
+			sb.append('\n');
 
 			for (int j = 0; j < index[i]; j += 2) {
 				sb.append('[')
@@ -331,6 +413,9 @@ public class GeometryBuffer {
 				    .append(',')
 				    .append(points[o + j + 1])
 				    .append(']');
+
+				if (j % 4 == 0)
+					sb.append('\n');
 			}
 			sb.append('\n');
 			o += index[i];

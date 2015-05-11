@@ -6,6 +6,7 @@ import org.oscim.layers.tile.TileManager;
 import org.oscim.layers.tile.TileRenderer;
 import org.oscim.map.Map;
 import org.oscim.renderer.GLViewport;
+import org.oscim.renderer.LayerRenderer;
 import org.oscim.renderer.OffscreenRenderer;
 import org.oscim.renderer.OffscreenRenderer.Mode;
 import org.oscim.tiling.TileSource;
@@ -16,7 +17,6 @@ import org.slf4j.LoggerFactory;
 
 public class S3DBLayer extends TileLayer {
 	static final Logger log = LoggerFactory.getLogger(S3DBLayer.class);
-	static final boolean POST_FXAA = false;
 
 	private final static int MAX_CACHE = 32;
 	private final static int SRC_ZOOM = 16;
@@ -28,10 +28,14 @@ public class S3DBLayer extends TileLayer {
 	private final TileSource mTileSource;
 
 	public S3DBLayer(Map map, TileSource tileSource) {
-		super(map,
-		      new TileManager(map, SRC_ZOOM, SRC_ZOOM, MAX_CACHE),
-		      new S3DBRenderer());
+		this(map, tileSource, true, false);
+	}
 
+	public S3DBLayer(Map map, TileSource tileSource, boolean fxaa, boolean ssao) {
+		super(map, new TileManager(map, MAX_CACHE));
+		setRenderer(new S3DBRenderer(fxaa, ssao));
+
+		mTileManager.setZoomLevel(SRC_ZOOM, SRC_ZOOM);
 		mTileSource = tileSource;
 		initLoader(2);
 	}
@@ -42,47 +46,36 @@ public class S3DBLayer extends TileLayer {
 	}
 
 	public static class S3DBRenderer extends TileRenderer {
-		BuildingRenderer mExtRenderer;
-		OffscreenRenderer or;
+		LayerRenderer mRenderer;
 
-		public S3DBRenderer() {
-			mExtRenderer = new BuildingRenderer(this, SRC_ZOOM, SRC_ZOOM, true, false);
+		public S3DBRenderer(boolean fxaa, boolean ssao) {
+			mRenderer = new BuildingRenderer(this, SRC_ZOOM, SRC_ZOOM, true, false);
 
-			if (POST_FXAA) {
-				or = new OffscreenRenderer(Mode.FXAA);
-				or.setRenderer(mExtRenderer);
+			if (fxaa || ssao) {
+				Mode mode = Mode.FXAA;
+				if (fxaa && ssao)
+					mode = Mode.SSAO_FXAA;
+				else if (ssao)
+					mode = Mode.SSAO;
+				mRenderer = new OffscreenRenderer(mode, mRenderer);
 			}
 		}
 
 		@Override
-		protected synchronized void update(GLViewport v) {
+		public synchronized void update(GLViewport v) {
 			super.update(v);
-			if (POST_FXAA) {
-				or.update(v);
-				setReady(or.isReady());
-			} else {
-				mExtRenderer.update(v);
-				setReady(mExtRenderer.isReady());
-			}
+			mRenderer.update(v);
+			setReady(mRenderer.isReady());
 		}
 
 		@Override
-		protected synchronized void render(GLViewport v) {
-			if (POST_FXAA) {
-				or.render(v);
-			} else {
-				mExtRenderer.render(v);
-			}
+		public synchronized void render(GLViewport v) {
+			mRenderer.render(v);
 		}
 
 		@Override
-		protected boolean setup() {
-			if (POST_FXAA) {
-				or.setup();
-			} else {
-				mExtRenderer.setup();
-			}
-
+		public boolean setup() {
+			mRenderer.setup();
 			return super.setup();
 		}
 	}

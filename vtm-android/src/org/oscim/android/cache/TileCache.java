@@ -45,12 +45,10 @@ public class TileCache implements ITileCache {
 	class CacheTileReader implements TileReader {
 		final InputStream mInputStream;
 		final Tile mTile;
-		final int mSize;
 
-		public CacheTileReader(Tile tile, InputStream is, int size) {
+		public CacheTileReader(Tile tile, InputStream is) {
 			mTile = tile;
 			mInputStream = is;
-			mSize = size;
 		}
 
 		@Override
@@ -61,11 +59,6 @@ public class TileCache implements ITileCache {
 		@Override
 		public InputStream getInputStream() {
 			return mInputStream;
-		}
-
-		@Override
-		public int getBytes() {
-			return mSize;
 		}
 	}
 
@@ -190,6 +183,7 @@ public class TileCache implements ITileCache {
 			db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME);
 			onCreate(db);
 		}
+
 		@Override
 		public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
 			onUpgrade(db, oldVersion, newVersion);
@@ -247,7 +241,7 @@ public class TileCache implements ITileCache {
 		if (dbg)
 			log.debug("load tile {}", tile);
 
-		return new CacheTileReader(tile, in, Integer.MAX_VALUE);
+		return new CacheTileReader(tile, in);
 	}
 
 	private final String[] mQueryVals = new String[3];
@@ -269,18 +263,18 @@ public class TileCache implements ITileCache {
 		if (!cursor.moveToFirst()) {
 			if (dbg)
 				log.debug("not in cache {}", tile);
+
+			cursor.close();
 			return null;
 		}
 
 		InputStream in = new ByteArrayInputStream(cursor.getBlob(0));
-
-		if (!cursor.isClosed())
-			cursor.close();
+		cursor.close();
 
 		if (dbg)
 			log.debug("load tile {}", tile);
 
-		return new CacheTileReader(tile, in, Integer.MAX_VALUE);
+		return new CacheTileReader(tile, in);
 	}
 
 	@Override

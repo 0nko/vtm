@@ -20,17 +20,17 @@ import org.oscim.backend.canvas.Color;
 import org.oscim.backend.canvas.Paint.Cap;
 import org.oscim.core.GeometryBuffer;
 import org.oscim.core.Tile;
-import org.oscim.renderer.elements.LineLayer;
-import org.oscim.renderer.elements.TextItem;
-import org.oscim.renderer.elements.TextLayer;
+import org.oscim.renderer.bucket.LineBucket;
+import org.oscim.renderer.bucket.TextBucket;
+import org.oscim.renderer.bucket.TextItem;
 import org.oscim.theme.styles.LineStyle;
 import org.oscim.theme.styles.TextStyle;
-import org.oscim.theme.styles.TextStyle.TextBuilder;
 
-public class GridRenderer extends ElementRenderer {
-	private final TextLayer mTextLayer;
+public class GridRenderer extends BucketRenderer {
+
+	private final TextBucket mTextBucket;
 	private final TextStyle mText;
-	private final LineLayer mLineLayer;
+	private final LineBucket mLineBucket;
 	private final GeometryBuffer mLines;
 	private final StringBuilder mStringBuffer;
 
@@ -38,7 +38,10 @@ public class GridRenderer extends ElementRenderer {
 
 	public GridRenderer() {
 		this(1, new LineStyle(Color.LTGRAY, 1.2f, Cap.BUTT),
-		     new TextBuilder().setFontSize(22).setColor(Color.RED).build());
+		     TextStyle.builder()
+		         .fontSize(22)
+		         .color(Color.RED)
+		         .build());
 	}
 
 	public GridRenderer(int numLines, LineStyle lineStyle, TextStyle textStyle) {
@@ -67,14 +70,17 @@ public class GridRenderer extends ElementRenderer {
 
 		mText = textStyle;
 
-		if (mText != null) {
-			mTextLayer = layers.addTextLayer(new TextLayer());
-		} else {
-			mTextLayer = null;
-		}
+		mLineBucket = new LineBucket(0);
+		mLineBucket.line = lineStyle;
 
-		mLineLayer = layers.addLineLayer(0, lineStyle);
-		mLineLayer.addLine(mLines);
+		if (mText != null) {
+			mTextBucket = new TextBucket();
+			mTextBucket.next = mLineBucket;
+		} else {
+			mTextBucket = null;
+			mLineBucket.addLine(mLines);
+			buckets.set(mLineBucket);
+		}
 
 		mStringBuffer = new StringBuilder(32);
 	}
@@ -82,7 +88,7 @@ public class GridRenderer extends ElementRenderer {
 	private void addLabels(int x, int y, int z) {
 		int s = Tile.SIZE;
 
-		TextLayer tl = mTextLayer;
+		TextBucket tl = mTextBucket;
 		tl.clear();
 
 		StringBuilder sb = mStringBuffer;
@@ -102,23 +108,17 @@ public class GridRenderer extends ElementRenderer {
 				tl.addText(ti);
 			}
 		}
-
-		/* render TextItems to a bitmap and prepare vertex buffer data. */
-		tl.prepare();
-
-		/* release TextItems */
-		tl.clearLabels();
 	}
 
 	@Override
-	protected void update(GLViewport v) {
+	public void update(GLViewport v) {
 		/* scale coordinates relative to current 'zoom-level' to
 		 * get the position as the nearest tile coordinate */
 		int z = 1 << v.pos.zoomLevel;
 		int x = (int) (v.pos.x * z);
 		int y = (int) (v.pos.y * z);
 
-		/* update layers when map moved by at least one tile */
+		/* update buckets when map moved by at least one tile */
 		if (x == mCurX && y == mCurY && z == mCurZ)
 			return;
 
@@ -132,13 +132,14 @@ public class GridRenderer extends ElementRenderer {
 		mMapPosition.scale = z;
 
 		if (mText != null) {
+			buckets.set(mTextBucket);
 			addLabels(x, y, v.pos.zoomLevel);
-			layers.setBaseLayers(mLineLayer);
-			mLineLayer.addLine(mLines);
-			compile();
-
-		} else if (layers.vbo == null) {
-			compile();
+			mLineBucket.addLine(mLines);
+			buckets.prepare();
+			setReady(false);
 		}
+
+		if (!isReady())
+			compile();
 	}
 }

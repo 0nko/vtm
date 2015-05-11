@@ -26,8 +26,8 @@ import org.oscim.layers.tile.TileLoader;
 import org.oscim.layers.tile.TileManager;
 import org.oscim.layers.tile.VectorTileRenderer;
 import org.oscim.map.Map;
-import org.oscim.renderer.elements.ElementLayers;
-import org.oscim.renderer.elements.LineLayer;
+import org.oscim.renderer.bucket.LineBucket;
+import org.oscim.renderer.bucket.RenderBuckets;
 import org.oscim.theme.styles.LineStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +37,7 @@ public class TestTileLayer extends TileLayer {
 
 	public TestTileLayer(Map map) {
 		super(map,
-		      new TileManager(map, 0, 20, 10),
+		      new TileManager(map, 10),
 		      new VectorTileRenderer());
 	}
 
@@ -58,12 +58,12 @@ public class TestTileLayer extends TileLayer {
 		@Override
 		public boolean loadTile(MapTile tile) {
 			log.debug("load tile " + tile);
-			ElementLayers layers = new ElementLayers();
-			tile.data = layers;
+			RenderBuckets buckets = new RenderBuckets();
+			tile.data = buckets;
 
-			LineLayer ll = layers.getLineLayer(0);
-			ll.line = mLineStyle;
-			ll.scale = 2;
+			LineBucket lb = buckets.getLineBucket(0);
+			lb.line = mLineStyle;
+			lb.scale = 2;
 
 			int m = 20;
 			int s = Tile.SIZE - m * 2;
@@ -77,13 +77,18 @@ public class TestTileLayer extends TileLayer {
 			g.addPoint(s, m);
 			g.addPoint(m, m);
 
-			ll.addLine(g);
+			lb.addLine(g);
 
 			return true;
 		}
 
 		@Override
-		public void cleanup() {
+		public void dispose() {
 		}
+
+		@Override
+		public void cancel() {
+		}
+
 	}
 }

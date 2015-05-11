@@ -1,9 +1,8 @@
 /*
  * Copyright 2010, 2011, 2012 mapsforge.org
- * Copyright 2013 Hannes Janetzek
  *
  * This file is part of the OpenScienceMap project (http://www.opensciencemap.org).
- * 
+ *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later version.
@@ -33,15 +32,10 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 
 public final class AndroidGraphics extends CanvasAdapter {
-	public static final AndroidGraphics INSTANCE = new AndroidGraphics();
 
 	public static void init() {
-		g = INSTANCE;
+		CanvasAdapter.init(new AndroidGraphics());
 	}
-
-	//	public static android.graphics.Bitmap getAndroidBitmap(Bitmap bitmap) {
-	//		return ((AndroidBitmap) bitmap).bitmap;
-	//	}
 
 	public static android.graphics.Paint getAndroidPaint(Paint paint) {
 		return ((AndroidPaint) paint).mPaint;
@@ -52,22 +46,32 @@ public final class AndroidGraphics extends CanvasAdapter {
 	}
 
 	@Override
-	public Bitmap decodeBitmap(InputStream inputStream) {
+	public Bitmap decodeBitmapImpl(InputStream inputStream) {
 		return new AndroidBitmap(inputStream);
 	}
 
 	@Override
-	public Paint getPaint() {
+	public Bitmap loadBitmapAssetImpl(String fileName) {
+		try {
+			return createBitmap(fileName);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	@Override
+	public Paint newPaintImpl() {
 		return new AndroidPaint();
 	}
 
 	@Override
-	public Bitmap getBitmap(int width, int height, int format) {
+	public Bitmap newBitmapImpl(int width, int height, int format) {
 		return new AndroidBitmap(width, height, format);
 	}
 
 	@Override
-	public Canvas getCanvas() {
+	public Canvas newCanvasImpl() {
 		return new AndroidCanvas();
 	}
 
@@ -89,23 +93,28 @@ public final class AndroidGraphics extends CanvasAdapter {
 		return new AndroidBitmap(bitmap);
 	}
 
-	public static MarkerSymbol makeMarker(Resources res, int id, HotspotPlace place) {
+	public static Bitmap drawableToBitmap(Resources res, int resId) {
+		return new AndroidBitmap(res.openRawResource(resId));
+	}
 
+	/**
+	 * @deprecated
+	 */
+	public static MarkerSymbol makeMarker(Drawable drawable, HotspotPlace place) {
 		if (place == null)
 			place = HotspotPlace.CENTER;
-
-		Drawable drawable = res.getDrawable(id);
 
 		return new MarkerSymbol(drawableToBitmap(drawable), place);
 	}
 
-	@Override
-	public Bitmap loadBitmapAsset(String fileName) {
-		try {
-			return createBitmap(fileName);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return null;
+	/**
+	 * @deprecated
+	 */
+	public static MarkerSymbol makeMarker(Resources res, int resId, HotspotPlace place) {
+		if (place == null)
+			place = HotspotPlace.CENTER;
+
+		InputStream in = res.openRawResource(resId);
+		return new MarkerSymbol(new AndroidBitmap(in), place);
 	}
 }

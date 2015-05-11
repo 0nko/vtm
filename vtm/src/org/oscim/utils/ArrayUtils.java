@@ -138,4 +138,27 @@ public class ArrayUtils {
 
 		return neg ? -val : val;
 	}
+
+	public static boolean withinRange(float[] vec, float min, float max) {
+		for (int i = 0, n = vec.length; i < n; i++) {
+			float v = vec[i];
+			if (v < min || v > max)
+				return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Set bbox array to:
+	 * xmin, ymin,
+	 * xmin, ymax,
+	 * xmax, ymax,
+	 * xmax, ymin,
+	 */
+	public static void setBox2D(float[] bbox, float xmin, float ymin, float xmax, float ymax) {
+		bbox[0] = bbox[2] = xmin;
+		bbox[4] = bbox[6] = xmax;
+		bbox[1] = bbox[7] = ymin;
+		bbox[3] = bbox[5] = ymax;
+	}
 }

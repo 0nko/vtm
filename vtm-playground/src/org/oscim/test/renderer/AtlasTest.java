@@ -7,17 +7,16 @@ import org.oscim.backend.canvas.Paint.Cap;
 import org.oscim.gdx.GdxMap;
 import org.oscim.gdx.GdxMapApp;
 import org.oscim.layers.GenericLayer;
-import org.oscim.renderer.ElementRenderer;
+import org.oscim.renderer.BucketRenderer;
 import org.oscim.renderer.GLViewport;
 import org.oscim.renderer.atlas.TextureAtlas;
 import org.oscim.renderer.atlas.TextureAtlas.Rect;
 import org.oscim.renderer.atlas.TextureAtlas.Slot;
-import org.oscim.renderer.elements.LineLayer;
-import org.oscim.renderer.elements.TextItem;
-import org.oscim.renderer.elements.TextLayer;
+import org.oscim.renderer.bucket.LineBucket;
+import org.oscim.renderer.bucket.TextBucket;
+import org.oscim.renderer.bucket.TextItem;
 import org.oscim.theme.styles.LineStyle;
 import org.oscim.theme.styles.TextStyle;
-import org.oscim.theme.styles.TextStyle.TextBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +33,7 @@ public class AtlasTest extends GdxMap {
 		GdxMapApp.run(new AtlasTest(), null, 400);
 	}
 
-	static class AtlasRenderLayer extends ElementRenderer {
+	static class AtlasRenderLayer extends BucketRenderer {
 
 		Logger log = LoggerFactory.getLogger(AtlasRenderLayer.class);
 
@@ -42,21 +41,21 @@ public class AtlasTest extends GdxMap {
 
 			TextureAtlas mAtlas = TextureAtlas.create(2048, 2048, 1);
 
-			LineLayer ll = layers.getLineLayer(0);
+			TextBucket tl = new TextBucket();
+			TextStyle t = TextStyle.builder().fontSize(20).color(Color.BLACK).build();
+			buckets.set(tl);
+
+			LineBucket ll = buckets.getLineBucket(0);
 			ll.line = new LineStyle(Color.BLUE, 3, Cap.BUTT);
 			ll.scale = 1f;
 
-			LineLayer ll2 = layers.getLineLayer(1);
+			LineBucket ll2 = buckets.getLineBucket(1);
 			ll2.line = new LineStyle(Color.RED, 3, Cap.BUTT);
 			ll2.scale = 1f;
 
-			LineLayer ll3 = layers.getLineLayer(2);
+			LineBucket ll3 = buckets.getLineBucket(2);
 			ll3.line = new LineStyle(Color.GREEN, 3, Cap.BUTT);
 			ll3.scale = 1f;
-
-			TextLayer tl = new TextLayer();
-			TextStyle t = new TextBuilder().setFontSize(20).setColor(Color.BLACK).build();
-			layers.setTextureLayers(tl);
 
 			float[] points = new float[10];
 
@@ -101,7 +100,6 @@ public class AtlasTest extends GdxMap {
 
 				TextItem ti = TextItem.pool.get();
 				ti.set(r.x + r.w / 2, r.y + r.h / 2, "" + i, t);
-
 				ti.x1 = 0;
 				ti.y1 = 1; // (short) (size / 2);
 				ti.x2 = 1; // (short) size;
@@ -131,7 +129,7 @@ public class AtlasTest extends GdxMap {
 		boolean initial = true;
 
 		@Override
-		protected void update(GLViewport v) {
+		public void update(GLViewport v) {
 
 			if (initial) {
 				mMapPosition.copy(v.pos);

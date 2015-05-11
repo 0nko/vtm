@@ -20,19 +20,20 @@ public class S3DBMapActivity extends BaseMapActivity {
 
 		mMap.setTheme(VtmThemes.DEFAULT);
 
-		TileSource ts = new OSciMap4TileSource("http://opensciencemap.org/tiles/s3db");
+		TileSource ts = OSciMap4TileSource.builder()
+		    .url("http://opensciencemap.org/tiles/s3db")
+		    .zoomMin(16)
+		    .zoomMax(16)
+		    .build();
 
 		if (USE_CACHE) {
 			mS3dbCache = new TileCache(this, null, "s3db.db");
 			mS3dbCache.setCacheSize(512 * (1 << 10));
 			ts.setCache(mS3dbCache);
 		}
-		TileLayer tl = new S3DBLayer(mMap, ts);
+		TileLayer tl = new S3DBLayer(mMap, ts, true, false);
 		mMap.layers().add(tl);
-
 		mMap.layers().add(new LabelLayer(mMap, mBaseLayer));
-
-		mMap.setMapPosition(53.08, 8.83, Math.pow(2, 17));
 	}
 
 	@Override

@@ -16,14 +16,14 @@
  */
 package org.oscim.layers.tile.bitmap;
 
-import static org.oscim.layers.tile.MapTile.State.CANCEL;
+import static org.oscim.layers.tile.MapTile.State.LOADING;
 
 import org.oscim.backend.canvas.Bitmap;
 import org.oscim.core.Tile;
 import org.oscim.layers.tile.MapTile;
 import org.oscim.layers.tile.TileLoader;
-import org.oscim.renderer.elements.BitmapLayer;
-import org.oscim.renderer.elements.ElementLayers;
+import org.oscim.renderer.bucket.BitmapBucket;
+import org.oscim.renderer.bucket.RenderBuckets;
 import org.oscim.tiling.ITileDataSource;
 import org.oscim.tiling.TileSource;
 import org.slf4j.Logger;
@@ -55,18 +55,26 @@ public class BitmapTileLoader extends TileLoader {
 
 	@Override
 	public void setTileImage(Bitmap bitmap) {
-		if (isCanceled() || mTile.state(CANCEL))
+		if (isCanceled() || !mTile.state(LOADING)) {
+			bitmap.recycle();
 			return;
+		}
 
-		BitmapLayer l = new BitmapLayer(false);
+		BitmapBucket l = new BitmapBucket(false);
 		l.setBitmap(bitmap, Tile.SIZE, Tile.SIZE, mLayer.pool);
 
-		ElementLayers layers = new ElementLayers();
-		layers.setTextureLayers(l);
-		mTile.data = layers;
+		RenderBuckets buckets = new RenderBuckets();
+		buckets.set(l);
+		mTile.data = buckets;
 	}
 
 	@Override
-	public void cleanup() {
+	public void dispose() {
+		mTileDataSource.cancel();
+	}
+
+	@Override
+	public void cancel() {
+		mTileDataSource.cancel();
 	}
 }

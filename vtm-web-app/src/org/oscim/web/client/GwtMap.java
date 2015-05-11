@@ -17,7 +17,7 @@
 package org.oscim.web.client;
 
 import org.oscim.backend.CanvasAdapter;
-import org.oscim.backend.GL20;
+import org.oscim.backend.GL;
 import org.oscim.backend.GLAdapter;
 import org.oscim.core.MapPosition;
 import org.oscim.gdx.GdxAssets;
@@ -35,7 +35,6 @@ import org.oscim.theme.VtmThemes;
 import org.oscim.tiling.TileSource;
 import org.oscim.tiling.source.bitmap.BitmapTileSource;
 import org.oscim.tiling.source.bitmap.DefaultSources;
-import org.oscim.tiling.source.bitmap.DefaultSources.StamenToner;
 import org.oscim.tiling.source.oscimap4.OSciMap4TileSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +63,7 @@ class GwtMap extends GdxMap {
 		GdxAssets.init("");
 		CanvasAdapter.textScale = 0.7f;
 
-		GLAdapter.init((GL20) Gdx.graphics.getGL20());
+		GLAdapter.init((GL) Gdx.graphics.getGL20());
 		GLAdapter.GDX_WEBGL_QUIRKS = true;
 		MapRenderer.setBackgroundColor(0xffffff);
 		//Gdx.app.setLogLevel(Application.LOG_DEBUG);
@@ -90,17 +89,17 @@ class GwtMap extends GdxMap {
 			BitmapTileSource ts;
 
 			if ("toner".equals(mapName))
-				ts = new StamenToner();
+				ts = DefaultSources.STAMEN_TONER.build();
 			else if ("osm".equals(mapName))
-				ts = new DefaultSources.OpenStreetMap();
+				ts = DefaultSources.OPENSTREETMAP.build();
 			else if ("watercolor".equals(mapName))
-				ts = new DefaultSources.StamenWatercolor();
+				ts = DefaultSources.STAMEN_WATERCOLOR.build();
 			else if ("arcgis-shaded".equals(mapName))
-				ts = new DefaultSources.ArcGISWorldShaded();
+				ts = DefaultSources.ARCGIS_RELIEF.build();
 			else if ("imagico".equals(mapName))
-				ts = new DefaultSources.ImagicoLandcover();
+				ts = DefaultSources.IMAGICO_LANDCOVER.build();
 			else
-				ts = new StamenToner();
+				ts = DefaultSources.STAMEN_TONER.build();
 
 			mMap.setBaseMap(new BitmapTileLayer(mMap, ts));
 		} else {
@@ -123,7 +122,11 @@ class GwtMap extends GdxMap {
 
 		boolean s3db = mapUrl.params.containsKey("s3db");
 		if (s3db) {
-			TileSource ts = new OSciMap4TileSource("http://opensciencemap.org/tiles/s3db");
+			TileSource ts = OSciMap4TileSource.builder()
+			    .url("http://opensciencemap.org/tiles/s3db")
+			    .zoomMin(16)
+			    .zoomMax(16)
+			    .build();
 			mMap.layers().add(new S3DBLayer(mMap, ts));
 		}
 		if (l != null) {

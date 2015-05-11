@@ -23,7 +23,7 @@ import org.oscim.layers.tile.TileLoader;
 import org.oscim.layers.tile.TileManager;
 import org.oscim.layers.tile.VectorTileRenderer;
 import org.oscim.map.Map;
-import org.oscim.renderer.elements.TextureItem.TexturePool;
+import org.oscim.renderer.bucket.TextureItem.TexturePool;
 import org.oscim.tiling.TileSource;
 import org.oscim.utils.FastMath;
 import org.slf4j.Logger;
@@ -33,7 +33,7 @@ public class BitmapTileLayer extends TileLayer {
 
 	protected static final Logger log = LoggerFactory.getLogger(BitmapTileLayer.class);
 
-	private final static int CACHE_LIMIT = 20;
+	private final static int CACHE_LIMIT = 40;
 
 	protected final TileSource mTileSource;
 
@@ -55,11 +55,11 @@ public class BitmapTileLayer extends TileLayer {
 
 	public BitmapTileLayer(Map map, TileSource tileSource, int cacheLimit) {
 		super(map,
-		      new TileManager(map,
-		                      tileSource.getZoomLevelMin(),
-		                      tileSource.getZoomLevelMax(),
-		                      cacheLimit),
+		      new TileManager(map, cacheLimit),
 		      new VectorTileRenderer());
+
+		mTileManager.setZoomLevel(tileSource.getZoomLevelMin(),
+		                          tileSource.getZoomLevelMax());
 
 		mTileSource = tileSource;
 		initLoader(getNumLoaders());
@@ -110,7 +110,7 @@ public class BitmapTileLayer extends TileLayer {
 		pool.clear();
 	}
 
-	final static int POOL_FILL = 40;
+	final static int POOL_FILL = 20;
 
 	/** pool shared by TextLayers */
 	final TexturePool pool = new TexturePool(POOL_FILL) {

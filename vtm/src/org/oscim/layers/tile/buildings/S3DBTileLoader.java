@@ -11,8 +11,7 @@ import org.oscim.core.Tag;
 import org.oscim.layers.tile.MapTile;
 import org.oscim.layers.tile.TileLoader;
 import org.oscim.layers.tile.TileManager;
-import org.oscim.renderer.elements.ExtrusionLayer;
-import org.oscim.renderer.elements.ExtrusionLayers;
+import org.oscim.renderer.bucket.ExtrusionBucket;
 import org.oscim.tiling.ITileDataSource;
 import org.oscim.tiling.TileSource;
 import org.slf4j.Logger;
@@ -24,8 +23,8 @@ class S3DBTileLoader extends TileLoader {
 	/** current TileDataSource used by this MapTileLoader */
 	private final ITileDataSource mTileDataSource;
 
-	private ExtrusionLayer mLayers;
-	private ExtrusionLayer mRoofs;
+	private ExtrusionBucket mParts;
+	private ExtrusionBucket mRoofs;
 
 	private float mGroundScale;
 
@@ -40,7 +39,7 @@ class S3DBTileLoader extends TileLoader {
 		        4096, 0, 0,
 		        0, 4096, 0,
 		        4096, 4096, 0 };
-		g.index = new short[] { 0, 1, 2, 2, 1, 3 };
+		g.index = new int[] { 0, 1, 2, 2, 1, 3 };
 		mTilePlane.tags.add(new Tag("c", "transparent"));
 	}
 
@@ -51,8 +50,13 @@ class S3DBTileLoader extends TileLoader {
 	}
 
 	@Override
-	public void cleanup() {
-		mTileDataSource.destroy();
+	public void dispose() {
+		mTileDataSource.dispose();
+	}
+
+	@Override
+	public void cancel() {
+		mTileDataSource.cancel();
 	}
 
 	@Override
@@ -75,15 +79,13 @@ class S3DBTileLoader extends TileLoader {
 		mGroundScale = (float) MercatorProjection
 		    .groundResolution(lat, 1 << mTile.zoomLevel);
 
-		mRoofs = new ExtrusionLayer(0, mGroundScale, Color.get(247, 249, 250));
+		mRoofs = new ExtrusionBucket(0, mGroundScale, Color.get(247, 249, 250));
 
-		mLayers = new ExtrusionLayer(0, mGroundScale, Color.get(255, 254, 252));
+		mParts = new ExtrusionBucket(0, mGroundScale, Color.get(255, 254, 252));
 		//mRoofs = new ExtrusionLayer(0, mGroundScale, Color.get(207, 209, 210));
-		mRoofs.next = mLayers;
+		mRoofs.next = mParts;
 
-		ExtrusionLayers layers = BuildingLayer.get(tile);
-
-		layers.setLayers(mRoofs);
+		BuildingLayer.get(tile).setBuckets(mRoofs);
 
 		process(mTilePlane);
 	}
@@ -101,7 +103,7 @@ class S3DBTileLoader extends TileLoader {
 			return;
 		}
 
-		if (mLayers == null)
+		if (mParts == null)
 			initTile(mTile);
 
 		boolean isRoof = element.tags.containsKey(ROOF_KEY);
@@ -123,20 +125,20 @@ class S3DBTileLoader extends TileLoader {
 			if (isRoof && (roofShape == null || "flat".equals(roofShape)))
 				mRoofs.add(element);
 			else
-				mLayers.add(element);
+				mParts.add(element);
 			return;
 		}
 
-		for (ExtrusionLayer l = mLayers; l != null; l = l.next()) {
+		for (ExtrusionBucket l = mParts; l != null; l = l.next()) {
 			if (l.color == c) {
 				l.add(element);
 				return;
 			}
 		}
-		ExtrusionLayer l = new ExtrusionLayer(0, mGroundScale, c);
+		ExtrusionBucket l = new ExtrusionBucket(0, mGroundScale, c);
 
-		l.next = mLayers.next;
-		mLayers.next = l;
+		l.next = mParts.next;
+		mParts.next = l;
 
 		l.add(element);
 	}
@@ -144,7 +146,7 @@ class S3DBTileLoader extends TileLoader {
 	@Override
 	public void completed(QueryResult result) {
 
-		mLayers = null;
+		mParts = null;
 		mRoofs = null;
 
 		super.completed(result);

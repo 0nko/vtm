@@ -1,6 +1,8 @@
 package org.oscim.test.gdx.poi3d;
 
-import org.oscim.backend.GL20;
+import static org.oscim.backend.GLAdapter.gl;
+
+import org.oscim.backend.GL;
 import org.oscim.core.Tile;
 import org.oscim.map.Map;
 import org.oscim.map.Viewport;
@@ -46,7 +48,7 @@ public class GdxModelRenderer extends LayerRenderer {
 	}
 
 	@Override
-	protected boolean setup() {
+	public boolean setup() {
 
 		modelBatch = new ModelBatch(new DefaultShaderProvider());
 
@@ -67,7 +69,7 @@ public class GdxModelRenderer extends LayerRenderer {
 	}
 
 	@Override
-	protected synchronized void update(GLViewport v) {
+	public synchronized void update(GLViewport v) {
 		// if (loading && assets.update())
 		// doneLoading();
 
@@ -87,18 +89,18 @@ public class GdxModelRenderer extends LayerRenderer {
 	Renderable r = new Renderable();
 
 	@Override
-	protected void render(GLViewport v) {
+	public void render(GLViewport v) {
 		if (instances.size == 0)
 			return;
 
 		// GLUtils.checkGlError(">" + TAG);
 
-		GL.glDepthMask(true);
+		gl.depthMask(true);
 
 		if (v.pos.zoomLevel < 16)
-			GL.glClear(GL20.GL_DEPTH_BUFFER_BIT);
+			gl.clear(GL.DEPTH_BUFFER_BIT);
 
-		GL.glBindBuffer(GL20.GL_ELEMENT_ARRAY_BUFFER, 0);
+		gl.bindBuffer(GL.ELEMENT_ARRAY_BUFFER, 0);
 
 		// set state that is expected after modelBatch.end();
 		// modelBatch keeps track of its own state
@@ -168,9 +170,9 @@ public class GdxModelRenderer extends LayerRenderer {
 			//renderContext.end();
 		}
 
-		GL.glDepthMask(false);
-		GL.glBindBuffer(GL20.GL_ELEMENT_ARRAY_BUFFER, 0);
-		GL.glBindBuffer(GL20.GL_ARRAY_BUFFER, 0);
+		gl.depthMask(false);
+		gl.bindBuffer(GL.ELEMENT_ARRAY_BUFFER, 0);
+		gl.bindBuffer(GL.ARRAY_BUFFER, 0);
 	}
 
 	// @Override

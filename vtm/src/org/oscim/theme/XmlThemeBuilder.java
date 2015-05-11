@@ -37,7 +37,7 @@ import org.oscim.backend.canvas.Paint.FontStyle;
 import org.oscim.renderer.atlas.TextureAtlas;
 import org.oscim.renderer.atlas.TextureAtlas.Rect;
 import org.oscim.renderer.atlas.TextureRegion;
-import org.oscim.renderer.elements.TextureItem;
+import org.oscim.renderer.bucket.TextureItem;
 import org.oscim.theme.IRenderTheme.ThemeException;
 import org.oscim.theme.rule.Rule;
 import org.oscim.theme.rule.Rule.Closed;
@@ -128,12 +128,12 @@ public class XmlThemeBuilder extends DefaultHandler {
 	private final HashMap<String, RenderStyle> mStyles =
 	        new HashMap<String, RenderStyle>(10);
 
-	private final HashMap<String, TextStyle.TextBuilder> mTextStyles =
-	        new HashMap<String, TextStyle.TextBuilder>(10);
+	private final HashMap<String, TextStyle.TextBuilder<?>> mTextStyles =
+	        new HashMap<String, TextStyle.TextBuilder<?>>(10);
 
-	private final TextBuilder mTextBuilder = new TextBuilder();
-	private final AreaBuilder mAreaBuilder = new AreaBuilder();
-	private final LineBuilder mLineBuilder = new LineBuilder();
+	private final TextBuilder<?> mTextBuilder = TextStyle.builder();
+	private final AreaBuilder<?> mAreaBuilder = AreaStyle.builder();
+	private final LineBuilder<?> mLineBuilder = LineStyle.builder();
 
 	private RuleBuilder mCurrentRule;
 	private TextureAtlas mTextureAtlas;
@@ -387,7 +387,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 	 */
 	private LineStyle createLine(LineStyle line, String elementName, Attributes attributes,
 	        int level, boolean isOutline) {
-		LineBuilder b = mLineBuilder.set(line);
+		LineBuilder<?> b = mLineBuilder.set(line);
 		b.isOutline(isOutline);
 		b.level(level);
 
@@ -411,15 +411,15 @@ public class XmlThemeBuilder extends DefaultHandler {
 				b.color(value);
 
 			else if ("width".equals(name) || "stroke-width".equals(name)) {
-				b.width = parseFloat(value);
+				b.strokeWidth = parseFloat(value);
 				if (line == null) {
 					if (!isOutline)
-						validateNonNegative("width", b.width);
+						validateNonNegative("width", b.strokeWidth);
 				} else {
 					/* use stroke width relative to 'line' */
-					b.width += line.width;
-					if (b.width <= 0)
-						b.width = 1;
+					b.strokeWidth += line.width;
+					if (b.strokeWidth <= 0)
+						b.strokeWidth = 1;
 				}
 			}
 			else if ("cap".equals(name) || "stroke-linecap".equals(name))
@@ -472,8 +472,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 			}
 		}
 
-		AreaStyle area = createArea(style, localName, attributes, mLevels);
-		mLevels += 2;
+		AreaStyle area = createArea(style, localName, attributes, mLevels++);
 
 		if (isStyle) {
 			mStyles.put(AREA_STYLE + area.style, area);
@@ -487,7 +486,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 	 */
 	private AreaStyle createArea(AreaStyle area, String elementName, Attributes attributes,
 	        int level) {
-		AreaBuilder b = mAreaBuilder.set(area);
+		AreaBuilder<?> b = mAreaBuilder.set(area);
 		b.level(level);
 
 		String src = null;
@@ -509,12 +508,12 @@ public class XmlThemeBuilder extends DefaultHandler {
 				b.color(value);
 
 			else if ("stroke".equals(name))
-				b.outlineColor(value);
+				b.strokeColor(value);
 
 			else if ("stroke-width".equals(name)) {
 				float strokeWidth = Float.parseFloat(value);
 				validateNonNegative("stroke-width", strokeWidth);
-				b.outlineWidth = strokeWidth;
+				b.strokeWidth = strokeWidth;
 
 			} else if ("fade".equals(name))
 				b.fadeScale = Integer.parseInt(value);
@@ -531,7 +530,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 
 		if (src != null) {
 			try {
-				Bitmap bitmap = CanvasAdapter.g.loadBitmapAsset(src);
+				Bitmap bitmap = CanvasAdapter.getBitmapAsset(src);
 				if (bitmap != null)
 					b.texture = new TextureItem(bitmap, true);
 			} catch (Exception e) {
@@ -566,7 +565,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 		}
 		validateExists("img", img, elementName);
 
-		Bitmap bitmap = CanvasAdapter.g.loadBitmapAsset(IMG_PATH + img);
+		Bitmap bitmap = CanvasAdapter.getBitmapAsset(IMG_PATH + img);
 		mTextureAtlas = new TextureAtlas(bitmap);
 	}
 
@@ -692,7 +691,7 @@ public class XmlThemeBuilder extends DefaultHandler {
 	        boolean isCaption) throws SAXException {
 
 		String style = attributes.getValue("use");
-		TextStyle.TextBuilder pt = null;
+		TextBuilder<?> pt = null;
 
 		if (style != null) {
 			pt = mTextStyles.get(style);
@@ -702,10 +701,10 @@ public class XmlThemeBuilder extends DefaultHandler {
 			}
 		}
 
-		TextBuilder b = createText(localName, attributes, isCaption, pt);
+		TextBuilder<?> b = createText(localName, attributes, isCaption, pt);
 		if (isStyle) {
 			log.debug("put style {}", b.style);
-			mTextStyles.put(b.style, new TextBuilder().setFrom(b));
+			mTextStyles.put(b.style, TextStyle.builder().from(b));
 		} else {
 			mCurrentRule.addStyle(b.buildInternal());
 		}
@@ -716,14 +715,14 @@ public class XmlThemeBuilder extends DefaultHandler {
 	 *            ...
 	 * @return a new Text with the given rendering attributes.
 	 */
-	private TextStyle.TextBuilder createText(String elementName, Attributes attributes,
-	        boolean caption, TextBuilder style) {
-		TextBuilder b;
+	private TextBuilder<?> createText(String elementName, Attributes attributes,
+	        boolean caption, TextBuilder<?> style) {
+		TextBuilder<?> b;
 		if (style == null) {
 			b = mTextBuilder.reset();
 			b.caption = caption;
 		} else
-			b = mTextBuilder.setFrom(style);
+			b = mTextBuilder.from(style);
 
 		for (int i = 0; i < attributes.getLength(); i++) {
 			String name = attributes.getLocalName(i);
@@ -745,10 +744,10 @@ public class XmlThemeBuilder extends DefaultHandler {
 				b.fontSize = Float.parseFloat(value);
 
 			else if ("fill".equals(name))
-				b.color = Color.parseColor(value);
+				b.fillColor = Color.parseColor(value);
 
 			else if ("stroke".equals(name))
-				b.stroke = Color.parseColor(value);
+				b.strokeColor = Color.parseColor(value);
 
 			else if ("stroke-width".equals(name))
 				b.strokeWidth = Float.parseFloat(value);

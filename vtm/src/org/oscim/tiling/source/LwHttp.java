@@ -49,6 +49,9 @@ public class LwHttp implements HttpEngine {
 	private final static int RESPONSE_EXPECTED_LIVES = 100;
 	private final static long RESPONSE_TIMEOUT = (long) 10E9; // 10 second in nanosecond
 
+	private final static int CONNECT_TIMEOUT = 15000; // 15 seconds
+	private final static int SOCKET_TIMEOUT = 8000; // 8 seconds
+
 	private final static int BUFFER_SIZE = 8192;
 	private final byte[] buffer = new byte[BUFFER_SIZE];
 
@@ -244,7 +247,13 @@ public class LwHttp implements HttpEngine {
 		}
 	}
 
-	public InputStream read() throws IOException {
+	private void checkSocket() throws IOException {
+		if (mSocket == null)
+			throw new IOException("No Socket");
+	}
+
+	public synchronized InputStream read() throws IOException {
+		checkSocket();
 
 		Buffer is = mResponseStream;
 		is.mark(BUFFER_SIZE);
@@ -252,7 +261,6 @@ public class LwHttp implements HttpEngine {
 
 		byte[] buf = buffer;
 		boolean first = true;
-		boolean ok = true;
 		boolean gzip = false;
 
 		int read = 0;
@@ -272,7 +280,7 @@ public class LwHttp implements HttpEngine {
 				end++;
 
 			if (end == BUFFER_SIZE) {
-				return null;
+				throw new IOException("Header too large!");
 			}
 
 			if (buf[end] != '\n')
@@ -284,25 +292,24 @@ public class LwHttp implements HttpEngine {
 				break;
 			}
 
-			if (ok) {
-				if (first) {
-					first = false;
-					/* check only for OK ("HTTP/1.? ".length == 9) */
-					if (!check(HEADER_HTTP_OK, buf, pos + 9, end))
-						ok = false;
-
-				} else if (check(HEADER_CONTENT_LENGTH, buf, pos, end)) {
-					/* parse Content-Length */
-					contentLength = parseInt(buf, pos +
-					        HEADER_CONTENT_LENGTH.length + 2, end - 1);
-				} else if (check(HEADER_ENCODING_GZIP, buf, pos, end)) {
-					gzip = true;
-				} else if (check(HEADER_CONNECTION_CLOSE, buf, pos, end)) {
-					mMustCloseConnection = true;
+			if (first) {
+				first = false;
+				/* check only for OK ("HTTP/1.? ".length == 9) */
+				if (!check(HEADER_HTTP_OK, buf, pos + 9, end)) {
+					throw new IOException("HTTP Error: "
+					        + new String(buf, pos, end - pos - 1));
 				}
+			} else if (check(HEADER_CONTENT_LENGTH, buf, pos, end)) {
+				/* parse Content-Length */
+				contentLength = parseInt(buf, pos +
+				        HEADER_CONTENT_LENGTH.length + 2, end - 1);
+			} else if (check(HEADER_ENCODING_GZIP, buf, pos, end)) {
+				gzip = true;
+			} else if (check(HEADER_CONNECTION_CLOSE, buf, pos, end)) {
+				mMustCloseConnection = true;
 			}
 
-			if (!ok || dbg) {
+			if (dbg) {
 				String line = new String(buf, pos, end - pos - 1);
 				log.debug("> {} <", line);
 			}
@@ -310,9 +317,6 @@ public class LwHttp implements HttpEngine {
 			pos += (end - pos) + 1;
 			end = pos;
 		}
-
-		if (!ok)
-			return null;
 
 		/* back to start of content */
 		is.reset();
@@ -327,7 +331,7 @@ public class LwHttp implements HttpEngine {
 	}
 
 	@Override
-	public void sendRequest(Tile tile) throws IOException {
+	public synchronized void sendRequest(Tile tile) throws IOException {
 
 		if (mSocket != null) {
 			if (--mMaxRequests < 0)
@@ -382,7 +386,7 @@ public class LwHttp implements HttpEngine {
 		//mCommandStream.flush();
 	}
 
-	private void lwHttpConnect() throws IOException {
+	private synchronized void lwHttpConnect() throws IOException {
 		if (mSockAddr == null || mSockAddr.isUnresolved()) {
 			mSockAddr = new InetSocketAddress(mHost, mPort);
 			if (mSockAddr.isUnresolved())
@@ -392,8 +396,8 @@ public class LwHttp implements HttpEngine {
 		try {
 			mSocket = new Socket();
 			mSocket.setTcpNoDelay(true);
-			mSocket.setSoTimeout(5000);
-			mSocket.connect(mSockAddr, 10000);
+			mSocket.setSoTimeout(SOCKET_TIMEOUT);
+			mSocket.connect(mSockAddr, CONNECT_TIMEOUT);
 			mCommandStream = mSocket.getOutputStream();
 			mResponseStream = new Buffer(mSocket.getInputStream());
 
@@ -406,49 +410,34 @@ public class LwHttp implements HttpEngine {
 
 	@Override
 	public void close() {
-		if (mSocket == null)
-			return;
-
 		IOUtils.closeQuietly(mSocket);
-		mSocket = null;
-		mCommandStream = null;
-		mResponseStream = null;
+		synchronized (this) {
+			mSocket = null;
+			mCommandStream = null;
+			mResponseStream = null;
+		}
 	}
 
 	@Override
-	public void setCache(OutputStream os) {
-		if (mResponseStream == null)
+	public synchronized void setCache(OutputStream os) {
+		if (mSocket == null)
 			return;
 
 		mResponseStream.setCache(os);
 	}
 
 	@Override
-	public boolean requestCompleted(boolean success) {
-		if (mResponseStream == null)
+	public synchronized boolean requestCompleted(boolean ok) {
+		if (mSocket == null)
 			return false;
 
 		mLastRequest = System.nanoTime();
 		mResponseStream.setCache(null);
 
-		if (!mResponseStream.finishedReading()) {
-			if (dbg)
-				log.debug("invalid buffer position");
+		if (!ok || mMustCloseConnection || !mResponseStream.finishedReading())
 			close();
-			return true;
-		}
 
-		if (!success) {
-			close();
-			return false;
-		}
-
-		if (mMustCloseConnection) {
-			close();
-			return true;
-		}
-
-		return true;
+		return ok;
 	}
 
 	/** write (positive) integer to byte array */
