@@ -20,7 +20,7 @@
   <!-- src="textures/wood.png" -->
   <!-- <style-area id="wood" fill="#d1dbc7" fade="8" blend="11" blend-fill="#9ac56e" /> -->
 
-  <style-area id="tex1" src="textures/rough.png" />
+  <style-area id="tex1" />
 
   <!-- meadow|garden -->
   <style-area id="greens" use="tex1" fill="#c9dc91" fade="10" />
@@ -570,21 +570,21 @@
 
     <!-- building -->
     <m k="building">
-      <m zoom-min="14" zoom-max="16">
-        <m closed="yes">
-          <area use="building" fade="14" />
-        </m>
-        <m closed="no">
-          <line use="building" fade="14" />
-        </m>
-      </m>
+      <!--<m zoom-min="14" zoom-max="16">-->
+        <!--<m closed="yes">-->
+          <!--<area use="building" fade="14" />-->
+        <!--</m>-->
+        <!--<m closed="no">-->
+          <!--<line use="building" fade="14" />-->
+        <!--</m>-->
+      <!--</m>-->
       <m zoom-min="17">
         <extrusion side-color="#caecebe9" top-color="#caf9f8f6" line-color="#ffd9d8d6" />
       </m>
-      <m zoom-min="17">
-        <caption k="name" style="bold" size="10" fill="#4040ff" stroke="#ffffff" stroke-width="2.0" />
-        <caption k="addr:housenumber" style="bold" size="10" fill="#606060" stroke="#ffffff" stroke-width="2.0" />
-      </m>
+      <!--<m zoom-min="17">-->
+        <!--<caption k="name" style="bold" size="10" fill="#4040ff" stroke="#ffffff" stroke-width="2.0" />-->
+        <!--<caption k="addr:housenumber" style="bold" size="10" fill="#606060" stroke="#ffffff" stroke-width="2.0" />-->
+      <!--</m>-->
     </m>
 
     <!-- outline 1 - 4 -->
@@ -1044,182 +1044,182 @@
     </m>
 
     <!-- aeroway -->
-    <m k="aeroway">
-      <m k="aeroway" v="helipad" zoom-min="16">
-        <symbol src="heliport" />
-      </m>
-      <m k="aeroway" v="aerodrome|airport">
-        <symbol src="airport" />
-      </m>
-    </m>
+    <!--<m k="aeroway">-->
+      <!--<m k="aeroway" v="helipad" zoom-min="16">-->
+        <!--<symbol src="heliport" />-->
+      <!--</m>-->
+      <!--<m k="aeroway" v="aerodrome|airport">-->
+        <!--<symbol src="airport" />-->
+      <!--</m>-->
+    <!--</m>-->
 
     <m k="amenity">
 
-      <m zoom-min="15" select="first">
-        <m v="hospital">
-          <symbol src="hospital" />
-        </m>
-        <m k="amenity" v="school">
-          <symbol src="school" />
-        </m>
-        <m k="amenity" v="university|college">
-          <symbol src="university" />
-        </m>
-        <m k="amenity" v="library">
-          <symbol src="library" />
-        </m>
-        <m k="amenity" v="cinema">
-          <symbol src="cinema" />
-        </m>
+      <!--<m zoom-min="15" select="first">-->
+        <!--<m v="hospital">-->
+          <!--<symbol src="hospital" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="school">-->
+          <!--<symbol src="school" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="university|college">-->
+          <!--<symbol src="university" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="library">-->
+          <!--<symbol src="library" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="cinema">-->
+          <!--<symbol src="cinema" />-->
+        <!--</m>-->
 
-        <m select="when-matched">
-          <text use="poi" />
-        </m>
-      </m>
+        <!--<m select="when-matched">-->
+          <!--<text use="poi" />-->
+        <!--</m>-->
+      <!--</m>-->
 
-      <m zoom-min="16" select="first">
-        <m v="atm" zoom-min="17">
-          <symbol src="atm" />
-        </m>
-        <m v="cafe">
-          <symbol src="cafe" />
-        </m>
-        <m v="pub">
-          <symbol src="pub" />
-        </m>
-        <m v="bar">
-          <symbol src="bar" />
-        </m>
-        <m v="fast_food">
-          <symbol src="fast_food" />
-        </m>
-        <m v="restaurant">
-          <symbol src="restaurant" />
-        </m>
-        <m k="amenity" v="bus_station">
-          <symbol src="bus_station" />
-        </m>
-        <m select="when-matched">
-          <text use="poi" />
-        </m>
-      </m>
+      <!--<m zoom-min="16" select="first">-->
+        <!--<m v="atm" zoom-min="17">-->
+          <!--<symbol src="atm" />-->
+        <!--</m>-->
+        <!--<m v="cafe">-->
+          <!--<symbol src="cafe" />-->
+        <!--</m>-->
+        <!--<m v="pub">-->
+          <!--<symbol src="pub" />-->
+        <!--</m>-->
+        <!--<m v="bar">-->
+          <!--<symbol src="bar" />-->
+        <!--</m>-->
+        <!--<m v="fast_food">-->
+          <!--<symbol src="fast_food" />-->
+        <!--</m>-->
+        <!--<m v="restaurant">-->
+          <!--<symbol src="restaurant" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="bus_station">-->
+          <!--<symbol src="bus_station" />-->
+        <!--</m>-->
+        <!--<m select="when-matched">-->
+          <!--<text use="poi" />-->
+        <!--</m>-->
+      <!--</m>-->
 
-      <m zoom-min="17" select="first">
-        <m k="amenity" v="bank">
-          <symbol src="bank" />
-        </m>
-        <m k="amenity" v="bench">
-          <symbol src="bench" />
-        </m>
-        <m k="amenity" v="bicycle_rental">
-          <symbol src="bicycle_rental" />
-        </m>
-        <m k="amenity" v="drinking_water">
-          <symbol src="drinking_water" />
-        </m>
-        <m k="amenity" v="fire_station">
-          <symbol src="fire_station" />
-        </m>
-        <m k="amenity" v="fountain">
-          <symbol src="fountain" />
-        </m>
-        <m k="amenity" v="fuel">
-          <symbol src="petrolStation" />
-        </m>
-        <m k="amenity" v="kindergarten">
-          <symbol src="kindergarten" />
-        </m>
-        <m k="amenity" v="parking">
-          <symbol src="parking" />
-        </m>
-        <m k="amenity" v="pharmacy">
-          <symbol src="pharmacy" />
-        </m>
-        <m k="amenity" v="place_of_worship">
-          <m k="denomination|religion" v="jewish">
-            <symbol src="synagogue" />
-          </m>
-          <m k="denomination|religion" v="muslim|moslem">
-            <symbol src="mosque" />
-          </m>
-          <m k="denomination|religion" v="christian">
-            <symbol src="church" />
-          </m>
-        </m>
-        <m k="amenity" v="post_box">
-          <symbol src="postbox" />
-        </m>
-        <m k="amenity" v="post_office">
-          <symbol src="postoffice" />
-        </m>
-        <m k="amenity" v="recycling">
-          <symbol src="recycling" />
-        </m>
-        <m k="amenity" v="shelter">
-          <symbol src="shelter" />
-        </m>
-        <m k="amenity" v="telephone">
-          <symbol src="telephone" />
-        </m>
-        <m k="amenity" v="theatre">
-          <symbol src="theatre" />
-        </m>
-        <m select="when-matched">
-          <text use="poi" />
-        </m>
-      </m>
+      <!--<m zoom-min="17" select="first">-->
+        <!--<m k="amenity" v="bank">-->
+          <!--<symbol src="bank" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="bench">-->
+          <!--<symbol src="bench" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="bicycle_rental">-->
+          <!--<symbol src="bicycle_rental" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="drinking_water">-->
+          <!--<symbol src="drinking_water" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="fire_station">-->
+          <!--<symbol src="fire_station" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="fountain">-->
+          <!--<symbol src="fountain" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="fuel">-->
+          <!--<symbol src="petrolStation" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="kindergarten">-->
+          <!--<symbol src="kindergarten" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="parking">-->
+          <!--<symbol src="parking" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="pharmacy">-->
+          <!--<symbol src="pharmacy" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="place_of_worship">-->
+          <!--<m k="denomination|religion" v="jewish">-->
+            <!--<symbol src="synagogue" />-->
+          <!--</m>-->
+          <!--<m k="denomination|religion" v="muslim|moslem">-->
+            <!--<symbol src="mosque" />-->
+          <!--</m>-->
+          <!--<m k="denomination|religion" v="christian">-->
+            <!--<symbol src="church" />-->
+          <!--</m>-->
+        <!--</m>-->
+        <!--<m k="amenity" v="post_box">-->
+          <!--<symbol src="postbox" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="post_office">-->
+          <!--<symbol src="postoffice" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="recycling">-->
+          <!--<symbol src="recycling" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="shelter">-->
+          <!--<symbol src="shelter" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="telephone">-->
+          <!--<symbol src="telephone" />-->
+        <!--</m>-->
+        <!--<m k="amenity" v="theatre">-->
+          <!--<symbol src="theatre" />-->
+        <!--</m>-->
+        <!--<m select="when-matched">-->
+          <!--<text use="poi" />-->
+        <!--</m>-->
+      <!--</m>-->
 
-      <m zoom-min="17">
-        <m k="amenity" v="toilets">
-          <symbol src="toilets" />
-        </m>
-      </m>
+      <!--<m zoom-min="17">-->
+        <!--<m k="amenity" v="toilets">-->
+          <!--<symbol src="toilets" />-->
+        <!--</m>-->
+      <!--</m>-->
     </m>
 
     <m k="shop">
-      <m zoom-min="15" select="first">
-        <m v="bakery">
-          <symbol src="shop_bakery" />
-        </m>
-        <m v="florist">
-          <symbol src="florist" />
-        </m>
-        <m v="hairdresser" zoom-min="16">
-          <symbol src="shop_hairdresser" />
-        </m>
-        <m v="supermarket|organic">
-          <symbol src="shop_supermarket" />
-        </m>
+      <!--<m zoom-min="15" select="first">-->
+        <!--<m v="bakery">-->
+          <!--<symbol src="shop_bakery" />-->
+        <!--</m>-->
+        <!--<m v="florist">-->
+          <!--<symbol src="florist" />-->
+        <!--</m>-->
+        <!--<m v="hairdresser" zoom-min="16">-->
+          <!--<symbol src="shop_hairdresser" />-->
+        <!--</m>-->
+        <!--<m v="supermarket|organic">-->
+          <!--<symbol src="shop_supermarket" />-->
+        <!--</m>-->
 
-        <m zoom-min="17">
-          <symbol src="city" />
-        </m>
+        <!--<m zoom-min="17">-->
+          <!--<symbol src="city" />-->
+        <!--</m>-->
 
-        <m select="when-matched" zoom-min="17">
-          <text use="poi" />
-        </m>
-      </m>
+        <!--<m select="when-matched" zoom-min="17">-->
+          <!--<text use="poi" />-->
+        <!--</m>-->
+      <!--</m>-->
     </m>
 
     <m k="tourism">
-      <m zoom-min="15" select="first">
-        <m v="alpine_hut">
-          <symbol src="triangle-stroked" />
-        </m>
-        <m v="camp_site">
-          <symbol src="camping" />
-        </m>
-        <m v="hostel">
-          <symbol src="hostel" />
-        </m>
-        <m v="hotel">
-          <symbol src="hotel" />
-        </m>
+      <!--<m zoom-min="15" select="first">-->
+        <!--<m v="alpine_hut">-->
+          <!--<symbol src="triangle-stroked" />-->
+        <!--</m>-->
+        <!--<m v="camp_site">-->
+          <!--<symbol src="camping" />-->
+        <!--</m>-->
+        <!--<m v="hostel">-->
+          <!--<symbol src="hostel" />-->
+        <!--</m>-->
+        <!--<m v="hotel">-->
+          <!--<symbol src="hotel" />-->
+        <!--</m>-->
 
-        <m select="when-matched">
-          <text use="poi" />
-        </m>
-      </m>
+        <!--<m select="when-matched">-->
+          <!--<text use="poi" />-->
+        <!--</m>-->
+      <!--</m>-->
 
       <!-- <m zoom-min="16" select="first">
         <m v="information" select="first">
@@ -1233,12 +1233,12 @@
         </m>
         </m>
       -->
-      <m v="viewpoint">
-        <symbol src="view_point" />
-      </m>
-      <m v="museum">
-        <symbol src="museum" />
-      </m>
+      <!--<m v="viewpoint">-->
+        <!--<symbol src="view_point" />-->
+      <!--</m>-->
+      <!--<m v="museum">-->
+        <!--<symbol src="museum" />-->
+      <!--</m>-->
 
     </m>
 
